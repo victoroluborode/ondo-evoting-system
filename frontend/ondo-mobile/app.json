@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Ondo e-Vote",
+    "slug": "ondo-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#146B3A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#146B3A"
+      }
+    }
+  }
+}
