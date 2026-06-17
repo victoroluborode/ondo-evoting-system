@@ -20,7 +20,7 @@ The backend is designed to run locally. It is not configured for a public produc
 
 ### Offline Sync
 
-Offline-capable authentication and voting are part of the design, but the local client queue and final sync/reconciliation module are not fully implemented yet. A complete version should encrypt offline votes locally, prevent duplicate local voting, and reconcile votes with the backend when connectivity returns.
+The backend now supports signed offline voting packages and queued vote synchronization. The remaining work is on the future mobile client: storing the local encrypted queue, preventing duplicate local voting before reconnecting, and automatically retrying sync when connectivity returns.
 
 ### Admin Metrics
 
@@ -34,7 +34,7 @@ Admin dashboard metrics are calculated from local database records. More advance
 - Add trained FaceNet/MobileFaceNet/TensorFlow Lite model if on-device face recognition is selected.
 - Add real email delivery through Resend, SendGrid, Mailgun, or AWS SES.
 - Add production SMS/OTP delivery.
-- Add offline vote queue and secure sync/reconciliation module.
+- Add the mobile offline vote queue and automatic reconnect retry workflow.
 - Add deployment using Render, Railway, Fly.io, AWS, Azure, or GCP.
 - Add CI/CD pipeline.
 - Add database backups and restore tests.

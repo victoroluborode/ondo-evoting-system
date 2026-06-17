@@ -11,8 +11,10 @@ People:
 - Election Admin
 
 Election structure:
+- Election
 - Constituency
 - Local Government Area
+- Party
 - Candidate
 
 Voting records:
@@ -80,11 +82,28 @@ Stores:
 
 Purpose:
 
-> Allows admins to monitor the election, view dashboards/results, and later manage candidates, parties, officers, and elections.
+> Allows admins to monitor the election, view dashboards/results, and manage candidates, parties, officers, and elections.
 
 Admins are supervisory users. They should not be treated the same as registration officers because they have broader election-management responsibilities.
 
-## 4. Constituency
+## 4. Election
+
+Represents an election configured by a senior admin.
+
+Stores:
+
+- election name
+- election type
+- status
+- start time
+- end time
+- creating admin
+
+Purpose:
+
+> Allows administrators to create and control election setup before voters cast ballots.
+
+## 5. Constituency
 
 Represents one Federal Constituency in Ondo State.
 
@@ -99,7 +118,40 @@ Purpose:
 
 This is central to electoral isolation. A voter registered in one constituency must not access another constituency's ballot.
 
-## 5. Local Government Area
+Admins can update constituency display metadata, but the system keeps the 9 core constituencies fixed because voters, candidates, and votes are partitioned by constituency.
+
+## 6. Local Government Area
+
+Represents an Ondo State LGA and maps it to one federal constituency.
+
+Stores:
+
+- LGA name
+- constituency ID
+
+Purpose:
+
+> Allows officer registration to auto-resolve a voter into the correct constituency from the selected LGA.
+
+Admins can manage LGA records and mappings, but LGAs already tied to voters or the mock INEC register are protected from remapping/deletion.
+
+## 7. Mock INEC Voter Register
+
+Represents the official voter roll used to validate VINs before a voter is enrolled into this application.
+
+Stores:
+
+- VIN
+- registered name
+- LGA
+- constituency
+- eligibility status
+
+Purpose:
+
+> Prevents officers from registering made-up VINs. The app voter account can only be created after the VIN is found in the mock INEC register and matches the selected LGA/constituency.
+
+## 6. Local Government Area
 
 Represents an LGA inside a Federal Constituency.
 
@@ -112,7 +164,22 @@ Purpose:
 
 > When a voter's LGA is selected, the system automatically knows the voter's constituency.
 
-## 6. Candidate
+## 7. Party
+
+Represents a political party that can sponsor candidates.
+
+Stores:
+
+- party name
+- party code
+- logo URL
+- status
+
+Purpose:
+
+> Gives admins a controlled list of parties before assigning candidates to constituencies.
+
+## 8. Candidate
 
 Represents someone contesting in an election.
 
@@ -129,7 +196,7 @@ Purpose:
 
 Candidates are constituency-bound so voters only see candidates valid for their registered constituency.
 
-## 7. Vote
+## 9. Vote
 
 Represents a cast vote.
 
@@ -152,7 +219,7 @@ Purpose:
 
 The vote table supports one-voter-one-vote enforcement and integrity verification.
 
-## 8. Result
+## 10. Result
 
 Stores aggregated vote counts.
 
@@ -167,7 +234,7 @@ Purpose:
 
 > Allows admin dashboard/results to display totals without decrypting every vote.
 
-## 9. Voter Auth Session
+## 11. Voter Auth Session
 
 Tracks temporary and final voter sessions.
 
@@ -188,7 +255,7 @@ Purpose:
 
 This entity is what makes the login flow safer: password login alone does not equal permission to vote.
 
-## 10. Password Reset Token
+## 12. Password Reset Token
 
 Stores password reset requests.
 
@@ -240,9 +307,9 @@ Can:
 - view registered voter counts
 - view turnout
 - view results
-- manage candidates/parties/elections in the planned admin module
-- manage officers in the planned admin module
-- monitor system status and security alerts in the planned admin module
+- manage candidates/parties/elections
+- manage officers
+- monitor system status and security alerts
 
 Should not:
 

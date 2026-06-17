@@ -59,6 +59,8 @@ For project scope, these parts are represented at backend/API level:
 
 - fingerprint verification is represented by a backend confirmation field
 - face verification is represented by a backend confirmation field
+- voter records track fingerprint/face enrollment status
+- partial auth sessions track failed biometric attempts and lock after repeated failure
 - the actual fingerprint and face matching modules are planned for a later project phase
 - SMS registration and OTP delivery are mocked locally
 

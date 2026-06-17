@@ -436,7 +436,7 @@ What works in the prototype:
 - SHA-256 integrity hash
 - One-voter-one-vote enforcement
 - Admin dashboard and results
-- Admin election/candidate/party/officer management planned as the next module expansion
+- Admin election/candidate/party/officer management
 
 Production integrations needed later:
 - Live INEC voter register/VIN validation

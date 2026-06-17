@@ -68,5 +68,7 @@ Backend-side support includes:
 - encrypted vote payloads with integrity hashes
 - receipt codes that can be shown after vote submission
 - token/session records that support controlled voting sessions
+- signed offline voting packages for authenticated voters
+- offline vote synchronization with idempotent `offline_vote_id` reconciliation
 
-The actual offline queue, biometric capture, and later synchronization would live in the client/offline module. The important rule is that offline votes must still be encrypted, tied to the voter's constituency, checked for one-voter-one-vote during sync, and reconciled before final results are accepted.
+The actual local queue and biometric capture live in the future mobile client/offline module. The backend already enforces the important sync rules: offline votes must be tied to the voter's constituency, checked against election lifecycle, reconciled once, encrypted at storage, and counted only after one-voter-one-vote validation.

@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ondo e-Vote - Interactive Prototype</title>
+  <style>
+    :root {
+      --green: #0f4c2a;
+      --green-mid: #1a6b3c;
+      --green-tint: #ebf4ee;
+      --green-tint2: #c8dfd0;
+      --surface: #ffffff;
+      --bg: #eceeed;
+      --bg2: #f6f8f6;
+      --ink: #0d1a12;
+      --ink-mid: #3d5145;
+      --ink-soft: #7a9082;
+      --border: #d5e0d9;
+      --border-light: #e8eee9;
+      --red: #c0392b;
+      --red-tint: #fdeceb;
+      --amber: #a66c00;
+      --amber-tint: #fff8e7;
+      --chrome: #111714;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #f7faf8, var(--bg));
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: grid;
+      place-items: center;
+      padding: 28px 16px;
+    }
+
+    .stage {
+      width: min(100%, 1100px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 52px;
+      align-items: center;
+    }
+
+    .copy .eyebrow {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+
+    .copy h1 {
+      max-width: 560px;
+      font-size: clamp(34px, 5vw, 62px);
+      line-height: 0.98;
+      letter-spacing: -1.8px;
+      color: var(--ink);
+      margin-bottom: 18px;
+    }
+
+    .copy p {
+      max-width: 520px;
+      color: var(--ink-soft);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .flow-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 26px;
+    }
+
+    .flow-pills span {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--ink-mid);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .phone-wrap {
+      display: grid;
+      place-items: center;
+    }
+
+    .phone {
+      width: 330px;
+      height: 672px;
+      border: 10px solid var(--chrome);
+      border-radius: 40px;
+      background: var(--bg2);
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.08) inset,
+        0 24px 70px rgba(13, 26, 18, .22),
+        0 8px 18px rgba(0,0,0,.12);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-bar {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      font-size: 11px;
+      font-weight: 900;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .status-bar.dark { background: var(--green); color: #fff; }
+
+    .signal {
+      display: flex;
+      gap: 2px;
+      align-items: flex-end;
+      height: 10px;
+    }
+
+    .signal span {
+      width: 3px;
+      background: currentColor;
+      border-radius: 2px;
+    }
+
+    .signal span:nth-child(1) { height: 3px; opacity: .4; }
+    .signal span:nth-child(2) { height: 5px; opacity: .6; }
+    .signal span:nth-child(3) { height: 7px; opacity: .8; }
+    .signal span:nth-child(4) { height: 10px; }
+
+    .topnav {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-light);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .back-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--ink-mid);
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .topnav-title {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .chip {
+      border: 1px solid var(--green-tint2);
+      background: var(--green-tint);
+      color: var(--green);
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .chip.dark { background: var(--ink); border-color: var(--ink); color: white; }
+    .chip.red { background: var(--red-tint); border-color: #e8c0bc; color: var(--red); }
+    .chip.amber { background: var(--amber-tint); border-color: #f0dda0; color: var(--amber); }
+
+    .screen {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg2);
+    }
+
+    .screen.active { display: flex; }
+
+    .scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 18px;
+    }
+
+    .scroll::-webkit-scrollbar { width: 0; }
+
+    .center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 20px 18px;
+    }
+
+    .footer {
+      padding: 14px 18px 18px;
+      border-top: 1px solid var(--border-light);
+      background: var(--bg2);
+      flex-shrink: 0;
+    }
+
+    .splash {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: var(--green);
+      color: #fff;
+      padding: 30px;
+      position: relative;
+    }
+
+    .splash-mark {
+      width: 62px;
+      height: 62px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.24);
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      margin-bottom: 24px;
+    }
+
+    .splash h2 {
+      font-size: 25px;
+      font-weight: 950;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .splash p {
+      max-width: 220px;
+      color: rgba(255,255,255,.58);
+      font-size: 10px;
+      line-height: 1.7;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .splash small {
+      position: absolute;
+      bottom: 24px;
+      color: rgba(255,255,255,.38);
+      font-size: 10px;
+      letter-spacing: .8px;
+    }
+
+    h2 {
+      font-size: 24px;
+      line-height: 1.1;
+      font-weight: 950;
+      letter-spacing: -.4px;
+      color: var(--ink);
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .subtitle {
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+
+    .label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink-mid);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .9px;
+      text-transform: uppercase;
+    }
+
+    .field-group { margin-top: 14px; }
+
+    input, select {
+      width: 100%;
+      height: 44px;
+      border: 1.4px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      padding: 0 12px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    input:focus, select:focus { border-color: var(--green); }
+
+    .btn {
+      width: 100%;
+      min-height: 46px;
+      border: 0;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      padding: 12px;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      cursor: pointer;
+    }
+
+    .btn.primary { background: var(--green); color: white; }
+    .btn.secondary { background: var(--bg2); color: var(--ink-mid); border: 1.4px solid var(--border); }
+    .btn.outline { background: transparent; color: var(--green); border: 1.4px solid var(--green); }
+    .btn.danger { background: var(--red-tint); color: var(--red); border: 1.4px solid #e8c0bc; }
+    .btn:disabled { opacity: .48; cursor: not-allowed; }
+    .btn + .btn { margin-top: 10px; }
+
+    .card {
+      border: 1.4px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 13px;
+    }
+
+    .action-card {
+      border: 1.4px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 13px 13px 13px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 66px;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .action-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--green);
+    }
+
+    .action-card.selected {
+      border-color: var(--green);
+      background: var(--green-tint);
+    }
+
+    .icon-box {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--green-tint);
+      border: 1px solid var(--green-tint2);
+      color: var(--green);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      font-weight: 900;
+    }
+
+    .action-text { flex: 1; min-width: 0; }
+    .action-text strong { display: block; font-size: 13px; font-weight: 900; color: var(--ink); }
+    .action-text span { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 3px; line-height: 1.45; }
+    .chev { color: var(--border); font-size: 18px; font-weight: 900; }
+
+    .notice {
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      background: var(--surface);
+      color: var(--ink-mid);
+      font-size: 12px;
+      line-height: 1.55;
+      margin-top: 12px;
+    }
+
+    .notice strong {
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      font-size: 10px;
+      font-weight: 950;
+      margin-bottom: 3px;
+    }
+
+    .notice.success { background: var(--green-tint); border-color: var(--green-tint2); color: var(--green-mid); }
+    .notice.warn { background: #fffbf0; border-color: #f0dda0; color: #7a5a10; }
+    .notice.error { background: var(--red-tint); border-color: #e8c0bc; color: var(--red); }
+
+    .tabs {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      margin-bottom: 18px;
+      background: var(--surface);
+    }
+
+    .tabs span {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      min-height: 30px;
+      color: var(--ink-soft);
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      border-right: 1px solid var(--border);
+    }
+
+    .tabs span:last-child { border-right: 0; }
+    .tabs span.done { background: var(--green-tint); color: var(--green); }
+    .tabs span.active { background: var(--green); color: #fff; }
+
+    .const-banner {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 16px;
+      background: var(--green-tint);
+      border-bottom: 1px solid var(--green-tint2);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 950;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .candidate {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1.4px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 13px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+
+    .candidate.selected {
+      border-color: var(--green);
+      background: var(--green-tint);
+    }
+
+    .radio {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .candidate.selected .radio {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .candidate.selected .radio::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .party {
+      display: inline-block;
+      margin-top: 4px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--bg2);
+      padding: 2px 6px;
+      color: var(--ink-mid);
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: .7px;
+    }
+
+    .scan-zone {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 26px;
+    }
+
+    .ring {
+      width: 106px;
+      height: 106px;
+      border-radius: 50%;
+      background: var(--green-tint);
+      border: 2px solid var(--green-tint2);
+      color: var(--green);
+      display: grid;
+      place-items: center;
+      font-size: 38px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .face-ring::before,
+    .face-ring::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: var(--green);
+    }
+
+    .face-ring::before { top: -6px; left: -6px; border-top: 2px solid; border-left: 2px solid; }
+    .face-ring::after { right: -6px; bottom: -6px; border-right: 2px solid; border-bottom: 2px solid; }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid var(--green-tint2);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .85s linear infinite;
+      margin: 18px auto 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .detail-table {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .detail-row {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 0 13px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .detail-row:last-child { border-bottom: 0; }
+    .detail-row span { color: var(--ink-soft); font-size: 12px; }
+    .detail-row strong { color: var(--ink); font-size: 12px; text-align: right; }
+
+    .stat {
+      border-radius: 10px;
+      background: var(--green);
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    .stat span {
+      color: rgba(255,255,255,.58);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 50px;
+      line-height: 1;
+      font-weight: 950;
+      margin: 8px 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .module {
+      min-height: 118px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 12px;
+      cursor: pointer;
+    }
+
+    .module .icon-box {
+      width: 30px;
+      height: 30px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .module strong {
+      display: block;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 950;
+      margin-bottom: 6px;
+    }
+
+    .module span {
+      color: var(--ink-soft);
+      font-size: 10px;
+      line-height: 1.55;
+    }
+
+    .row-card {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      padding: 12px;
+      margin-top: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .row-card strong { font-size: 12px; color: var(--ink); }
+    .row-card span { display: block; font-size: 10px; color: var(--ink-soft); margin-top: 3px; }
+    .green-text { color: var(--green) !important; }
+
+    .receipt {
+      border: 1.5px dashed var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 18px 14px;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .receipt .token {
+      color: var(--green);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: 1.3px;
+      margin: 8px 0;
+    }
+
+    .toast {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      background: var(--ink);
+      color: #fff;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 800;
+      display: none;
+      z-index: 9;
+    }
+
+    .toast.show { display: block; }
+
+    @media (max-width: 820px) {
+      body { padding: 16px; align-items: start; }
+      .stage { grid-template-columns: 1fr; gap: 22px; }
+      .copy { display: none; }
+      .phone { width: min(100%, 360px); height: calc(100vh - 32px); min-height: 640px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <section class="copy">
+      <div class="eyebrow">Interactive Prototype</div>
+      <h1>Ondo e-Vote mobile experience</h1>
+      <p>Tap through the voter, electoral officer, and admin journeys inside the phone preview. This is a browser prototype for quick review on desktop or mobile before the native Expo app is fully tested.</p>
+      <div class="flow-pills">
+        <span>Voter login</span>
+        <span>Bimodal auth</span>
+        <span>Ballot review</span>
+        <span>Officer registration</span>
+        <span>Admin control</span>
+        <span>Offline sync</span>
+      </div>
+    </section>
+
+    <section class="phone-wrap">
+      <div class="phone">
+        <div id="status" class="status-bar dark">
+          <span>9:41</span>
+          <div class="signal"><span></span><span></span><span></span><span></span></div>
+        </div>
+
+        <section id="splash" class="screen active">
+          <div class="splash">
+            <div class="splash-mark">▣</div>
+            <h2>Ondo e-Vote</h2>
+            <p>Bimodal Multi-Constituency Platform</p>
+            <button class="btn secondary" style="margin-top:28px;max-width:210px;" onclick="go('roles')">Enter Prototype</button>
+            <small>Federal Republic of Nigeria · NDPR Compliant</small>
+          </div>
+        </section>
+
+        <section id="roles" class="screen">
+          <div class="center">
+            <div class="label">Welcome</div>
+            <h2>Select Portal</h2>
+            <p class="subtitle">Choose your operational role to access the correct system gateway.</p>
+            <div style="margin-top:18px;">
+              <div class="action-card" onclick="go('voterLogin')">
+                <div class="icon-box">▣</div>
+                <div class="action-text"><strong>Voter</strong><span>Accreditation & ballot access</span></div>
+                <div class="chev">›</div>
+              </div>
+              <div class="action-card" onclick="go('officerLogin')">
+                <div class="icon-box">♙</div>
+                <div class="action-text"><strong>Electoral Officer</strong><span>Voter registration & enrolment</span></div>
+                <div class="chev">›</div>
+              </div>
+              <div class="action-card" onclick="go('adminLogin')">
+                <div class="icon-box">◇</div>
+                <div class="action-text"><strong>System Admin</strong><span>Election setup & result collation</span></div>
+                <div class="chev">›</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="voterLogin" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Voter Login</div><div class="chip">Voter</div></nav>
+          <div class="center">
+            <h3>Welcome back</h3>
+            <p class="subtitle">Enter your VIN or registered email to access your constituency ballot.</p>
+            <div class="field-group"><label class="label">VIN / Email Address</label><input value="XA9-2027-AKES"></div>
+            <div class="field-group"><label class="label">Password</label><input type="password" value="password123"></div>
+            <button class="btn primary" onclick="go('bioChoice')">Authenticate</button>
+            <button class="btn secondary" onclick="toast('Password reset will use email or phone OTP.')">Forgot password?</button>
+            <div class="notice"><strong>Next step</strong>Successful login issues a short session token before biometric verification.</div>
+          </div>
+        </section>
+
+        <section id="bioChoice" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('voterLogin')">‹</button><div class="topnav-title">Identity Verification</div><div class="chip">Step 1</div></nav>
+          <div class="center">
+            <h3>Verify Identity</h3>
+            <p class="subtitle">Access is granted on successful verification from either method.</p>
+            <div class="action-card" onclick="scan('fingerprint')">
+              <div class="icon-box">⌾</div><div class="action-text"><strong>Fingerprint Scan</strong><span>Use the device hardware sensor</span></div><div class="chev">›</div>
+            </div>
+            <div class="action-card" onclick="scan('face')">
+              <div class="icon-box">◎</div><div class="action-text"><strong>Facial Recognition</strong><span>On-device camera pipeline</span></div><div class="chev">›</div>
+            </div>
+            <div class="notice">Voters with worn fingerprints may proceed directly to facial recognition.</div>
+          </div>
+        </section>
+
+        <section id="fingerprint" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('bioChoice')">‹</button><div class="topnav-title">Fingerprint Scan</div></nav>
+          <div class="scan-zone">
+            <div class="ring">⌾</div>
+            <h3>Place Finger on Sensor</h3>
+            <p class="subtitle">Hold still while the sensor reads your enrolled fingerprint.</p>
+            <div class="spinner"></div>
+            <button class="btn secondary" style="margin-top:24px;" onclick="scan('face')">Switch to facial recognition</button>
+          </div>
+        </section>
+
+        <section id="face" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('bioChoice')">‹</button><div class="topnav-title">Facial Recognition</div></nav>
+          <div class="scan-zone">
+            <div class="ring face-ring">♙</div>
+            <h3>Align Your Face</h3>
+            <p class="subtitle">Centre your face in the frame and keep still while liveness is checked.</p>
+            <div class="spinner"></div>
+            <button class="btn secondary" style="margin-top:24px;" onclick="scan('fingerprint')">Switch to fingerprint</button>
+          </div>
+        </section>
+
+        <section id="ballot" class="screen">
+          <div class="const-banner"><span class="dot"></span>Akure North / Akure South Constituency</div>
+          <div class="scroll">
+            <h3>Official Ballot</h3>
+            <p class="subtitle">Select one candidate for House of Representatives.</p>
+            <div id="candidateList"></div>
+          </div>
+          <div class="footer"><button id="reviewBtn" class="btn primary" disabled onclick="go('review')">Review Selection</button></div>
+        </section>
+
+        <section id="review" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('ballot')">‹</button><div class="topnav-title">Final Review</div><div class="chip">Step 3</div></nav>
+          <div class="center">
+            <div class="notice warn"><strong>Immutable action</strong>Once submitted, your vote cannot be changed or withdrawn.</div>
+            <div style="margin-top:18px;" class="label">Your Selected Candidate</div>
+            <div class="card" style="text-align:center;background:var(--green-tint);border-color:var(--green);">
+              <h3 id="reviewName">Adewale Adeleke</h3>
+              <p id="reviewParty" class="subtitle" style="color:var(--green);font-weight:900;">APC · Akure North / Akure South</p>
+            </div>
+            <div class="detail-table">
+              <div class="detail-row"><span>Constituency</span><strong>Akure North / Akure South</strong></div>
+              <div class="detail-row"><span>Encryption</span><strong>AES-256 CBC</strong></div>
+              <div class="detail-row"><span>Election</span><strong>ONDO-2027-HR</strong></div>
+            </div>
+            <button class="btn primary" style="margin-top:18px;" onclick="castVote()">Cast Secure Vote</button>
+            <button class="btn outline" onclick="go('ballot')">Go Back & Modify</button>
+          </div>
+        </section>
+
+        <section id="receipt" class="screen">
+          <div class="center" style="text-align:center;">
+            <div class="ring" style="width:70px;height:70px;font-size:30px;margin-inline:auto;">✓</div>
+            <h3>Vote Cast Successfully</h3>
+            <p class="subtitle">Your encrypted vote has been written to the isolated constituency partition.</p>
+            <div class="receipt">
+              <div class="label">Anonymous Transaction Token</div>
+              <div class="token" id="voteToken">AES-R8Q2LM5OXA</div>
+              <p class="subtitle" style="font-size:11px;">This token confirms submission without revealing your candidate selection.</p>
+            </div>
+            <button class="btn primary" onclick="go('roles')">Exit & Logout</button>
+            <button class="btn secondary" onclick="go('syncQueue')">View Sync Queue</button>
+          </div>
+        </section>
+
+        <section id="officerLogin" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Officer Login</div><div class="chip">Officer</div></nav>
+          <div class="center">
+            <h3>Electoral Officer</h3>
+            <p class="subtitle">Access the supervised voter registration dashboard.</p>
+            <div class="field-group"><label class="label">Officer ID</label><input value="OFF-AKURE-02"></div>
+            <div class="field-group"><label class="label">Passcode</label><input type="password" value="password123"></div>
+            <button class="btn primary" onclick="go('officerDash')">Secure Login</button>
+          </div>
+        </section>
+
+        <section id="officerDash" class="screen">
+          <nav class="topnav"><div class="topnav-title">Registration Portal</div><div class="chip">Officer</div></nav>
+          <div class="scroll">
+            <div class="stat"><span>Session Registrations</span><strong>42</strong><small>Akure South LGA · Active partition</small></div>
+            <h3>Quick Actions</h3>
+            <div class="action-card" onclick="go('voterDetails')"><div class="icon-box">+</div><div class="action-text"><strong>Register New Voter</strong><span>Initiate biometric TEE enrolment</span></div><div class="chev">›</div></div>
+            <div class="action-card" onclick="go('syncQueue')"><div class="icon-box">↻</div><div class="action-text"><strong>View Sync Queue</strong><span>Inspect encrypted records awaiting upload</span></div><div class="chev">›</div></div>
+            <button class="btn secondary" style="margin-top:18px;" onclick="go('roles')">End Session & Logout</button>
+          </div>
+        </section>
+
+        <section id="voterDetails" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('officerDash')">‹</button><div class="topnav-title">Register Voter</div></nav>
+          <div class="scroll">
+            <div class="tabs"><span class="active">Demographics</span><span>Biometrics</span><span>Confirm</span></div>
+            <div class="field-group"><label class="label">Full Legal Name</label><input value="Akinwale Tunde"></div>
+            <div class="field-group"><label class="label">Voter Identification Number</label><input value="XA9-2027-AKES"></div>
+            <div class="field-group"><label class="label">Phone Number</label><input value="08012345678"></div>
+            <div class="field-group"><label class="label">Federal Constituency / LGA</label><select><option>Akure South LGA</option><option>Ondo West LGA</option><option>Okitipupa LGA</option></select></div>
+            <button class="btn primary" style="margin-top:16px;" onclick="go('enrolBiometrics')">Validate & Proceed</button>
+          </div>
+        </section>
+
+        <section id="enrolBiometrics" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('voterDetails')">‹</button><div class="topnav-title">Register Voter</div></nav>
+          <div class="scroll">
+            <div class="tabs"><span class="done">Demographics</span><span class="active">Biometrics</span><span>Confirm</span></div>
+            <p class="subtitle">Capture both modalities. Templates are encrypted and stored in the device Trusted Execution Environment.</p>
+            <div id="fpEnroll" class="action-card" onclick="markEnrolled('fp')"><div class="icon-box">⌾</div><div class="action-text"><strong>Fingerprint Capture</strong><span>Tap to capture fingerprint template</span></div><div class="chev">›</div></div>
+            <div id="faceEnroll" class="action-card" onclick="markEnrolled('face')"><div class="icon-box">◎</div><div class="action-text"><strong>Facial Mapping</strong><span>Tap to extract face embedding</span></div><div class="chev">›</div></div>
+            <div class="notice success" id="enrollNotice" style="display:none;">Both templates captured. No raw biometric data will leave this device.</div>
+          </div>
+          <div class="footer"><button id="bioContinue" class="btn primary" disabled onclick="go('setPassword')">Confirm & Continue</button></div>
+        </section>
+
+        <section id="setPassword" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('enrolBiometrics')">‹</button><div class="topnav-title">Register Voter</div></nav>
+          <div class="scroll">
+            <div class="tabs"><span class="done">Demographics</span><span class="done">Biometrics</span><span class="active">Confirm</span></div>
+            <div class="field-group"><label class="label">Set Voter Password</label><input type="password" value="password123"></div>
+            <div class="field-group"><label class="label">Confirm Password</label><input type="password" value="password123"></div>
+            <button class="btn primary" style="margin-top:16px;" onclick="go('regSuccess')">Finalize Registration</button>
+          </div>
+        </section>
+
+        <section id="regSuccess" class="screen">
+          <div class="center" style="text-align:center;">
+            <div class="tabs"><span class="done">Demographics</span><span class="done">Biometrics</span><span class="active">Confirm</span></div>
+            <div class="ring" style="width:70px;height:70px;font-size:30px;margin-inline:auto;">✓</div>
+            <h3>Voter Registered</h3>
+            <p class="subtitle">Identity and biometrics written to the Akure South partition. Record is queued for server sync.</p>
+            <div class="detail-table">
+              <div class="detail-row"><span>VIN</span><strong>XA9-2027-AKES</strong></div>
+              <div class="detail-row"><span>Partition</span><strong>Akure South LGA</strong></div>
+              <div class="detail-row"><span>Sync status</span><strong><span class="chip amber">Queued</span></strong></div>
+            </div>
+            <button class="btn primary" style="margin-top:18px;" onclick="go('voterDetails')">Register Next Voter</button>
+            <button class="btn secondary" onclick="go('officerDash')">Return to Dashboard</button>
+          </div>
+        </section>
+
+        <section id="adminLogin" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">System Admin</div><div class="chip dark">Admin</div></nav>
+          <div class="center">
+            <h3>Admin Access</h3>
+            <p class="subtitle">Multi-factor authentication is required before entry to the admin portal.</p>
+            <div id="adminCreds">
+              <div class="field-group"><label class="label">Admin ID / Username</label><input value="ADM-ONDO-001"></div>
+              <div class="field-group"><label class="label">Password</label><input type="password" value="password123"></div>
+              <button class="btn primary" onclick="showAdminMfa()">Verify Credentials</button>
+              <div class="notice"><strong>Next step</strong>Biometric verification and RBAC will be applied after password confirmation.</div>
+            </div>
+            <div id="adminMfa" style="display:none;text-align:center;">
+              <div class="ring" style="margin-inline:auto;">⌾</div>
+              <h3>Biometric Authorization</h3>
+              <p class="subtitle">Verify admin identity to satisfy role-based access control.</p>
+              <button class="btn primary" style="margin-top:18px;" onclick="go('adminDash')">Scan Admin Fingerprint</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminDash" class="screen">
+          <nav class="topnav"><div class="topnav-title">Command Center</div><div class="chip dark">Admin</div></nav>
+          <div class="scroll">
+            <h3>System Modules</h3>
+            <p class="subtitle">Select a module to manage the electoral lifecycle.</p>
+            <div class="grid">
+              <div class="module" onclick="go('electionMgmt')"><div class="icon-box">⚙</div><strong>Election Mgmt</strong><span>Configure settings, upload candidates</span></div>
+              <div class="module" onclick="toast('Voter management module placeholder')"><div class="icon-box">♙</div><strong>Voter Mgmt</strong><span>Verify records, detect duplicates</span></div>
+              <div class="module" onclick="toast('Constituency management module placeholder')"><div class="icon-box">⌁</div><strong>Constituency</strong><span>Partitions and LGA config</span></div>
+              <div class="module" onclick="go('syncMonitor')"><div class="icon-box">⌄</div><strong>Monitoring</strong><span>Offline sync and anomalies</span></div>
+              <div class="module" onclick="go('results')"><div class="icon-box">▥</div><strong>Result Collation</strong><span>Verify and collate results</span></div>
+              <div class="module" onclick="toast('Audit and security module placeholder')"><div class="icon-box">◇</div><strong>Audit & Security</strong><span>Logs and encrypted backups</span></div>
+            </div>
+            <button class="btn secondary" style="margin-top:18px;" onclick="go('roles')">Terminate Admin Session</button>
+          </div>
+        </section>
+
+        <section id="electionMgmt" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('adminDash')">‹</button><div class="topnav-title">Election Management</div><div class="chip">Draft</div></nav>
+          <div class="scroll">
+            <h3>Pre-Election Setup</h3>
+            <div class="row-card"><div><strong>Configure Election Settings</strong><span class="green-text">Completed</span></div><div class="chev">›</div></div>
+            <div class="row-card"><div><strong>Upload Candidate Information</strong><span>Pending</span></div><div class="chev">›</div></div>
+            <div class="row-card"><div><strong>Assign to Constituencies</strong><span>Pending</span></div><div class="chev">›</div></div>
+            <div class="row-card"><div><strong>Verify Ballot Routing</strong><span>Pending</span></div><div class="chev">›</div></div>
+            <div class="notice warn"><strong>Action required</strong>Complete all setup tasks before activating the election session.</div>
+            <button class="btn danger" onclick="toast('Election cannot be activated until pending tasks are complete.')">Activate Election Session</button>
+          </div>
+        </section>
+
+        <section id="results" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('adminDash')">‹</button><div class="topnav-title">Result Collation</div></nav>
+          <div class="scroll">
+            <p class="subtitle">Fetch and verify isolated vote counts across all 9 Federal Constituencies.</p>
+            <button class="btn primary" style="margin-top:18px;" onclick="showResults()">Verify Integrity & Collate</button>
+            <div id="resultRows" style="display:none;">
+              <div class="notice success"><strong>Integrity verified</strong>No cross-constituency anomalies detected across all 9 partitions.</div>
+              <div class="label" style="margin-top:18px;">Constituency Results</div>
+              <div class="row-card"><strong>Akure North / Akure South</strong><strong class="green-text">42,105</strong></div>
+              <div class="row-card"><strong>Idanre / Ifedore</strong><strong class="green-text">38,720</strong></div>
+              <div class="row-card"><strong>Ondo East / Ondo West</strong><strong class="green-text">51,340</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="syncMonitor" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('adminDash')">‹</button><div class="topnav-title">Offline Sync Monitor</div></nav>
+          <div class="scroll">
+            <div class="stat"><span>Encrypted Records Pending</span><strong>160</strong></div>
+            <div class="label">Constituency Nodes</div>
+            <div class="row-card"><div><strong>Akure South Node</strong><span><span class="chip">Synced</span></span></div><strong>0 pending</strong></div>
+            <div class="row-card"><div><strong>Ondo West Node</strong><span><span class="chip red">Offline</span></span></div><strong>142 pending</strong></div>
+            <div class="row-card"><div><strong>Okitipupa Node</strong><span><span class="chip amber">Syncing</span></span></div><strong>18 pending</strong></div>
+          </div>
+        </section>
+
+        <section id="syncQueue" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Local Sync Queue</div></nav>
+          <div class="scroll">
+            <p class="subtitle">Encrypted records are held securely on-device until a connection is available.</p>
+            <div class="row-card"><div><span>Network Status</span><strong class="green-text">Connected (Online)</strong></div><span class="chip">Live</span></div>
+            <div class="label" style="margin-top:18px;">Pending Transmissions</div>
+            <div class="row-card"><div><strong>Encrypted Votes</strong><span>Awaiting secure channel transmission</span></div><strong class="green-text">1</strong></div>
+            <div class="row-card"><div><strong>Registrations</strong><span>Officer portal records queued</span></div><strong class="green-text">1</strong></div>
+            <button class="btn primary" style="margin-top:14px;" onclick="toast('Sync completed successfully.')">Force Sync Now</button>
+          </div>
+        </section>
+
+        <div id="toast" class="toast"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const screens = Array.from(document.querySelectorAll('.screen'));
+    const statusBar = document.getElementById('status');
+    const toastBox = document.getElementById('toast');
+    const candidates = [
+      { id: '1', name: 'Adewale Adeleke', party: 'APC' },
+      { id: '2', name: 'Olumide Bakare', party: 'PDP' },
+      { id: '3', name: 'Chidi Obi', party: 'LP' },
+      { id: '4', name: 'Musa Danjuma', party: 'NNPP' }
+    ];
+
+    let selectedCandidate = null;
+    const enroll = { fp: false, face: false };
+
+    function go(id) {
+      screens.forEach((screen) => screen.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      statusBar.classList.toggle('dark', id === 'splash');
+      hideToast();
+      if (id === 'ballot') renderCandidates();
+    }
+
+    function scan(type) {
+      go(type);
+      setTimeout(() => go('ballot'), 1300);
+    }
+
+    function renderCandidates() {
+      const list = document.getElementById('candidateList');
+      list.innerHTML = candidates.map((candidate) => `
+        <div class="candidate ${selectedCandidate?.id === candidate.id ? 'selected' : ''}" onclick="selectCandidate('${candidate.id}')">
+          <div class="radio"></div>
+          <div style="flex:1;">
+            <strong>${candidate.name}</strong>
+            <div class="party">${candidate.party}</div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('reviewBtn').disabled = !selectedCandidate;
+    }
+
+    function selectCandidate(id) {
+      selectedCandidate = candidates.find((candidate) => candidate.id === id);
+      document.getElementById('reviewName').textContent = selectedCandidate.name;
+      document.getElementById('reviewParty').textContent = `${selectedCandidate.party} · Akure North / Akure South`;
+      renderCandidates();
+    }
+
+    function castVote() {
+      const token = 'AES-' + Math.random().toString(36).slice(2, 12).toUpperCase();
+      document.getElementById('voteToken').textContent = token;
+      go('receipt');
+    }
+
+    function markEnrolled(type) {
+      enroll[type] = true;
+      const card = document.getElementById(type === 'fp' ? 'fpEnroll' : 'faceEnroll');
+      card.classList.add('selected');
+      card.querySelector('.action-text strong').textContent = type === 'fp' ? 'Fingerprint Captured' : 'Facial Mapping Complete';
+      card.querySelector('.action-text span').textContent = type === 'fp' ? 'Template stored in TEE · 3 fingers' : 'Face embedding stored in TEE';
+      card.querySelector('.chev').textContent = '✓';
+      if (enroll.fp && enroll.face) {
+        document.getElementById('bioContinue').disabled = false;
+        document.getElementById('enrollNotice').style.display = 'block';
+      }
+    }
+
+    function showAdminMfa() {
+      document.getElementById('adminCreds').style.display = 'none';
+      document.getElementById('adminMfa').style.display = 'block';
+    }
+
+    function showResults() {
+      document.getElementById('resultRows').style.display = 'block';
+      toast('Integrity verification completed.');
+    }
+
+    function toast(message) {
+      toastBox.textContent = message;
+      toastBox.classList.add('show');
+      setTimeout(hideToast, 2200);
+    }
+
+    function hideToast() {
+      toastBox.classList.remove('show');
+    }
+
+    renderCandidates();
+  </script>
+</body>
+</html>
