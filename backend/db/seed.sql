@@ -30,6 +30,22 @@ INSERT INTO election_officers (full_name, email, password_hash, role) VALUES
 INSERT INTO election_admins (full_name, email, password_hash, role) VALUES
 ('INEC Demo State Administrator', 'admin@inec.ondo.gov.ng', '$2b$12$WZAFoaJKOpDry5yQNMk7Ver68Vfug7TgE8cVUoPTVvPaY4vJZBglm', 'state_admin');
 
+INSERT INTO elections (name, election_type, status) VALUES
+('House of Representatives Elections 2027', 'house_of_representatives', 'draft');
+
+INSERT INTO parties (name, code) VALUES
+('All Progressives Congress', 'APC'),
+('Peoples Democratic Party', 'PDP'),
+('Zenith Labour Party', 'ZLP'),
+('Social Democratic Party', 'SDP'),
+('African Democratic Congress', 'ADC'),
+('New Nigeria Peoples Party', 'NNPP'),
+('Action Alliance', 'AA'),
+('All Progressives Grand Alliance', 'APGA'),
+('Young Progressives Party', 'YPP'),
+('Action Peoples Party', 'APP'),
+('African Action Congress', 'AAC');
+
 -- ============================================================
 -- VOTERS — 10 per constituency (90 total), realistic Ondo names
 -- ============================================================

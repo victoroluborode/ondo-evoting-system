@@ -1,143 +1,108 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const pool = require("../config/database");
 const { authenticateAdmin } = require("../middleware/auth");
+const {
+  createCandidate,
+  createElection,
+  createLga,
+  createOfficer,
+  createParty,
+  deleteCandidate,
+  deleteElection,
+  deleteLga,
+  deleteParty,
+  disableOfficer,
+  getDashboard,
+  getResults,
+  listCandidates,
+  listConstituencies,
+  listElections,
+  listLgas,
+  listOfficers,
+  listParties,
+  login,
+  closeElection,
+  openElection,
+  publishElection,
+  updateCandidate,
+  updateConstituency,
+  updateElection,
+  updateLga,
+  updateOfficer,
+  updateParty,
+} = require("../services/adminService");
 
 const router = express.Router();
 
-router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
+/**
+ * POST /api/admin/login
+ * Authenticates a senior INEC administrator.
+ */
+router.post("/login", login);
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
+/**
+ * GET /api/admin/dashboard
+ * Returns state-wide registration and turnout metrics.
+ */
+router.get("/dashboard", authenticateAdmin, getDashboard);
 
-    const result = await pool.query(
-      "SELECT id, full_name, email, password_hash, role FROM election_admins WHERE email = $1",
-      [email.toLowerCase()],
-    );
+/**
+ * GET /api/admin/results/:constituencyId
+ * Returns aggregated results for one constituency.
+ */
+router.get("/results/:constituencyId", authenticateAdmin, getResults);
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid admin credentials" });
-    }
+/**
+ * Constituency metadata and LGA mapping management.
+ */
+router.get("/constituencies", authenticateAdmin, listConstituencies);
+router.patch("/constituencies/:id", authenticateAdmin, updateConstituency);
+router.get("/lgas", authenticateAdmin, listLgas);
+router.post("/lgas", authenticateAdmin, createLga);
+router.patch("/lgas/:id", authenticateAdmin, updateLga);
+router.delete("/lgas/:id", authenticateAdmin, deleteLga);
 
-    const admin = result.rows[0];
-    const passwordMatches = await bcrypt.compare(password, admin.password_hash);
+/**
+ * Election setup and lifecycle management.
+ */
+router.get("/elections", authenticateAdmin, listElections);
+router.post("/elections", authenticateAdmin, createElection);
+router.patch("/elections/:id", authenticateAdmin, updateElection);
+router.post("/elections/:id/open", authenticateAdmin, openElection);
+router.post("/elections/:id/close", authenticateAdmin, closeElection);
+router.post("/elections/:id/publish", authenticateAdmin, publishElection);
+router.delete("/elections/:id", authenticateAdmin, deleteElection);
 
-    if (!passwordMatches) {
-      return res.status(401).json({ error: "Invalid admin credentials" });
-    }
+/**
+ * Political party management.
+ */
+router.get("/parties", authenticateAdmin, listParties);
+router.post("/parties", authenticateAdmin, createParty);
+router.patch("/parties/:id", authenticateAdmin, updateParty);
+router.delete("/parties/:id", authenticateAdmin, deleteParty);
 
-    const token = jwt.sign(
-      {
-        type: "admin",
-        adminId: admin.id,
-        role: admin.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "4h" },
-    );
+/**
+ * Candidate management by constituency.
+ */
+router.get("/candidates", authenticateAdmin, listCandidates);
+router.post("/candidates", authenticateAdmin, createCandidate);
+router.patch(
+  "/candidates/:constituencyId/:candidateId",
+  authenticateAdmin,
+  updateCandidate,
+);
+router.delete(
+  "/candidates/:constituencyId/:candidateId",
+  authenticateAdmin,
+  deleteCandidate,
+);
 
-    res.json({
-      success: true,
-      token,
-      admin: {
-        id: admin.id,
-        fullName: admin.full_name,
-        email: admin.email,
-        role: admin.role,
-      },
-    });
-  } catch (error) {
-    console.error("Admin login error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-router.get("/dashboard", authenticateAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT c.id,
-              c.name,
-              c.code,
-              COUNT(DISTINCT v.id) AS registered_voters,
-              COUNT(DISTINCT votes.voter_id) AS votes_cast,
-              CASE
-                WHEN COUNT(DISTINCT v.id) = 0 THEN 0
-                ELSE ROUND((COUNT(DISTINCT votes.voter_id)::numeric / COUNT(DISTINCT v.id)::numeric) * 100, 2)
-              END AS turnout_percentage
-       FROM constituencies c
-       LEFT JOIN voters v ON v.constituency_id = c.id
-       LEFT JOIN votes ON votes.constituency_id = c.id
-       GROUP BY c.id
-       ORDER BY c.id`,
-    );
-
-    const totals = result.rows.reduce(
-      (summary, row) => ({
-        registeredVoters: summary.registeredVoters + Number(row.registered_voters),
-        votesCast: summary.votesCast + Number(row.votes_cast),
-      }),
-      { registeredVoters: 0, votesCast: 0 },
-    );
-
-    res.json({
-      success: true,
-      summary: {
-        ...totals,
-        turnoutPercentage:
-          totals.registeredVoters === 0
-            ? 0
-            : Number(((totals.votesCast / totals.registeredVoters) * 100).toFixed(2)),
-      },
-      constituencies: result.rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        code: row.code,
-        registeredVoters: Number(row.registered_voters),
-        votesCast: Number(row.votes_cast),
-        turnoutPercentage: Number(row.turnout_percentage),
-      })),
-    });
-  } catch (error) {
-    console.error("Admin dashboard error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-router.get("/results/:constituencyId", authenticateAdmin, async (req, res) => {
-  try {
-    const { constituencyId } = req.params;
-
-    const result = await pool.query(
-      `SELECT c.id,
-              c.name,
-              c.party,
-              COALESCE(r.vote_count, 0) AS vote_count
-       FROM candidates c
-       LEFT JOIN results r
-         ON r.candidate_id = c.id AND r.constituency_id = c.constituency_id
-       WHERE c.constituency_id = $1
-       ORDER BY COALESCE(r.vote_count, 0) DESC, c.party, c.name`,
-      [constituencyId],
-    );
-
-    res.json({
-      success: true,
-      constituencyId: Number(constituencyId),
-      results: result.rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        party: row.party,
-        voteCount: Number(row.vote_count),
-      })),
-    });
-  } catch (error) {
-    console.error("Admin results error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+/**
+ * INEC officer account management.
+ * Delete is a soft-disable so historical registration records remain intact.
+ */
+router.get("/officers", authenticateAdmin, listOfficers);
+router.post("/officers", authenticateAdmin, createOfficer);
+router.patch("/officers/:id", authenticateAdmin, updateOfficer);
+router.delete("/officers/:id", authenticateAdmin, disableOfficer);
 
 module.exports = router;

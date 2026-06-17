@@ -1,12 +1,18 @@
 const windows = new Map();
 const crypto = require("crypto");
 
+/**
+ * Attaches a request ID to every request so logs and responses can be traced.
+ */
 function requestId(req, res, next) {
   req.id = req.headers["x-request-id"] || crypto.randomUUID();
   res.setHeader("X-Request-Id", req.id);
   next();
 }
 
+/**
+ * Logs each completed request with method, path, status, and duration.
+ */
 function requestLogger(req, res, next) {
   const startedAt = Date.now();
 
@@ -26,6 +32,9 @@ function requestLogger(req, res, next) {
   next();
 }
 
+/**
+ * Adds defensive HTTP headers for API responses.
+ */
 function securityHeaders(req, res, next) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -34,6 +43,9 @@ function securityHeaders(req, res, next) {
   next();
 }
 
+/**
+ * Creates a simple in-memory rate limiter for protecting demo/API endpoints.
+ */
 function rateLimit({ windowMs = 60_000, max = 60 } = {}) {
   return (req, res, next) => {
     const key = `${req.ip}:${req.path}`;

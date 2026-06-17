@@ -7,6 +7,9 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);
 });
 
+/**
+ * Gracefully stops the HTTP server when the process receives a shutdown signal.
+ */
 function shutdown(signal) {
   console.log(`${signal} received. Shutting down server.`);
   server.close(() => {

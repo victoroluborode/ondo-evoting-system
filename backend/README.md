@@ -11,7 +11,8 @@ Express and PostgreSQL backend for the Ondo State Bimodal E-Voting System.
 - Constituency-aware ballot access
 - Encrypted vote casting
 - One-voter-one-vote enforcement
-- Admin authentication and results monitoring
+- Admin authentication, results monitoring, and management CRUD
+- Election, party, candidate, and officer management
 - Email token and mock-SMS OTP password reset
 
 ## Setup
@@ -87,6 +88,7 @@ SMS:
 
 - SMS is intentionally mocked.
 - Registration SMS messages are logged as `mock_registration_sms`.
+- Password reset OTP messages are logged as `mock_password_reset_otp`.
 
 ## Related Docs
 

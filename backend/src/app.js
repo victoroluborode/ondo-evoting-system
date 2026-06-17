@@ -13,6 +13,7 @@ validateEnv();
 
 const app = express();
 
+// Global middleware shared by every API route.
 app.set("trust proxy", 1);
 app.use(requestId);
 app.use(securityHeaders);
@@ -26,15 +27,18 @@ app.use(
 app.use(express.json({ limit: "256kb" }));
 app.use(rateLimit({ windowMs: 60_000, max: 120 }));
 
+// Main API modules.
 app.use("/api/auth", authRoutes);
 app.use("/api/ballots", ballotsRoutes);
 app.use("/api/votes", votesRoutes);
 app.use("/api/admin", adminRoutes);
 
+// Lightweight health endpoint for uptime checks.
 app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "Ondo E-Voting API is running" });
 });
 
+// Readiness endpoint confirms the database is reachable before accepting traffic.
 app.get("/ready", async (req, res) => {
   try {
     await pool.query("SELECT 1");
@@ -44,10 +48,12 @@ app.get("/ready", async (req, res) => {
   }
 });
 
+// Handles unknown API paths with the request ID for easier debugging.
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found", requestId: req.id });
 });
 
+// Central Express error handler for uncaught route errors.
 app.use((error, req, res, next) => {
   if (res.headersSent) {
     return next(error);

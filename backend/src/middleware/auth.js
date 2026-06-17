@@ -1,6 +1,9 @@
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
 
+/**
+ * Verifies a Bearer JWT and optionally enforces the expected token type.
+ */
 function verifyToken(req, res, next, expectedType) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
@@ -23,6 +26,9 @@ function verifyToken(req, res, next, expectedType) {
   });
 }
 
+/**
+ * Authenticates a voter JWT and ensures the voting session has not been invalidated.
+ */
 function authenticateToken(req, res, next) {
   verifyToken(req, res, async () => {
     try {
@@ -52,10 +58,32 @@ function authenticateToken(req, res, next) {
   }, "voter");
 }
 
+/**
+ * Authenticates an officer JWT and confirms the officer account is still active.
+ */
 function authenticateOfficer(req, res, next) {
-  verifyToken(req, res, next, "officer");
+  verifyToken(req, res, async () => {
+    try {
+      const result = await pool.query(
+        "SELECT status FROM election_officers WHERE id = $1",
+        [req.user.officerId],
+      );
+
+      if (result.rows.length === 0 || result.rows[0].status !== "active") {
+        return res.status(403).json({ error: "Officer account is disabled" });
+      }
+
+      next();
+    } catch (error) {
+      console.error("Officer token status check error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }, "officer");
 }
 
+/**
+ * Authenticates a senior admin JWT.
+ */
 function authenticateAdmin(req, res, next) {
   verifyToken(req, res, next, "admin");
 }

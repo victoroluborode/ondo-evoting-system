@@ -2,6 +2,9 @@ require("dotenv").config();
 
 const REQUIRED_ENV = ["DATABASE_URL", "JWT_SECRET"];
 
+/**
+ * Fails fast when critical secrets or database settings are missing or too weak.
+ */
 function validateEnv() {
   const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
 

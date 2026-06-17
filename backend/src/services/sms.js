@@ -1,3 +1,6 @@
+/**
+ * Logs a registration SMS confirmation instead of calling a paid SMS provider.
+ */
 async function sendMockRegistrationSms({ to, vin }) {
   if (!to) {
     return { provider: "mock", sent: false };
@@ -14,6 +17,9 @@ async function sendMockRegistrationSms({ to, vin }) {
   return { provider: "mock", sent: true };
 }
 
+/**
+ * Logs a password reset OTP SMS for VIN-based password recovery demos.
+ */
 async function sendMockPasswordResetOtp({ to, otp }) {
   if (!to) {
     return { provider: "mock", sent: false };
