@@ -1,0 +1,19 @@
+
+# dependencies
+node_modules/
+backend/node_modules/
+frontend/ondo-mobile/node_modules/
+
+# env
+.env
+backend/.env
+frontend/ondo-mobile/.env
+
+# generated/cache
+.expo/
+dist/
+build/
+
+# local ML models
+backend/models/
+backend/.insightface/
