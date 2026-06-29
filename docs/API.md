@@ -66,8 +66,16 @@ Response:
 {
   "success": true,
   "sessionToken": "...",
+  "tokenType": "Partial",
+  "role": "voter",
   "constituencyId": 1,
   "fullName": "Ade Voter",
+  "user": {
+    "vin": "VIN-DEMO-001",
+    "fullName": "Ade Voter",
+    "role": "voter",
+    "constituencyId": 1
+  },
   "biometricEnrollment": {
     "fingerprint": true,
     "face": true
@@ -114,6 +122,8 @@ Response:
 {
   "success": true,
   "token": "...",
+  "tokenType": "Bearer",
+  "role": "voter",
   "constituencyId": 1,
   "fullName": "Ade Voter",
   "authMethod": "fingerprint",
@@ -123,15 +133,18 @@ Response:
 
 ### `POST /api/auth/forgot-password`
 
-Creates an email reset token if the email exists. Always returns a generic response to avoid account enumeration.
+Creates an email reset token when the supplied VIN or email belongs to a voter
+with an email address. Always returns a generic response to avoid account enumeration.
 
 Body:
 
 ```json
 {
-  "email": "voter@example.com"
+  "identifier": "VIN-DEMO-001"
 }
 ```
+
+The older `email` field remains accepted for compatibility.
 
 ### `POST /api/auth/reset-password`
 
@@ -193,10 +206,13 @@ Body:
 
 ```json
 {
-  "email": "officer@inec.ondo.gov.ng",
+  "identifier": "OFF-1002",
   "password": "Password123!"
 }
 ```
+
+`identifier` can be an officer ID or email. The older `officerId` and `email`
+fields remain accepted for compatibility.
 
 ### `POST /api/auth/register-voter`
 
@@ -317,10 +333,13 @@ Body:
 
 ```json
 {
-  "email": "admin@inec.ondo.gov.ng",
+  "identifier": "ADM-ONDO-001",
   "password": "AdminPassword123!"
 }
 ```
+
+`identifier` can be an admin ID or email. The older `adminId` and `email`
+fields remain accepted for compatibility.
 
 ### `GET /api/admin/dashboard`
 

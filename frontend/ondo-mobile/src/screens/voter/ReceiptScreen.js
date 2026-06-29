@@ -1,84 +1,134 @@
-import React, { useContext } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import CustomButton from '../../components/CustomButton';
-import { AuthContext } from '../../context/AuthContext';
-import { OfflineContext } from '../../context/OfflineContext';
-import { sharedStyles } from '../../components/DesignSystem';
-import { colors, spacing, typography } from '../../theme';
+import React, { useContext, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Clipboard from "expo-clipboard";
+import CustomButton from "../../components/CustomButton";
+import { AuthContext } from "../../context/AuthContext";
+import { colors, spacing, typography, radius } from "../../theme";
 
-export default function ReceiptScreen({ navigation }) {
+export default function ReceiptScreen({ route }) {
+  const insets = useSafeAreaInsets();
   const { logout } = useContext(AuthContext);
-  const { addToVoteQueue } = useContext(OfflineContext);
-  const transactionHash = 'AES-' + Math.random().toString(36).substring(2, 12).toUpperCase();
+  const { receiptCode } = route.params || {};
+  const [copied, setCopied] = useState(false);
 
-  // Demonstrates that encrypted vote payloads can be queued locally.
-  const queueDemoVote = () => {
-    addToVoteQueue({ receipt: transactionHash, queuedAt: Date.now() });
-    navigation.navigate('OfflineQueue');
+  const handleCopy = async () => {
+    if (!receiptCode) return;
+    await Clipboard.setStringAsync(receiptCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <View
+        style={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+      >
         <View style={styles.iconCircle}>
           <Text style={styles.icon}>✓</Text>
         </View>
 
-        <Text style={[typography.h2, styles.title]}>
+        <Text style={[typography.h1, styles.title]}>
           Vote Cast Successfully
         </Text>
-        <Text style={[typography.subtitle, styles.subtitleText]}>
-          Your encrypted vote has been written to the isolated constituency partition. No further action is required.
+        <Text style={[typography.subtitle, styles.subtitle]}>
+          Your vote has been received. Save your receipt code below — you can
+          verify it any time from the sign-in screen, without logging in.
         </Text>
 
         <View style={styles.receiptBox}>
-          <Text style={styles.receiptLabel}>ANONYMOUS TRANSACTION TOKEN</Text>
-          <Text style={styles.receiptHash}>{transactionHash}</Text>
+          <Text style={styles.receiptLabel}>Receipt Code</Text>
+          <Text style={styles.receiptHash} selectable>
+            {receiptCode || "Unavailable"}
+          </Text>
+
+          <TouchableOpacity
+            onPress={handleCopy}
+            style={styles.copyRow}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.copyText}>
+              {copied ? "Copied!" : "Copy Code"}
+            </Text>
+          </TouchableOpacity>
+
           <View style={styles.divider} />
           <Text style={styles.receiptNote}>
-            This cryptographic hash confirms non-repudiation but does not reveal candidate selection, preserving complete ballot secrecy.
+            This code confirms that a ballot was submitted. It does not reveal
+            who you voted for.
           </Text>
         </View>
 
-        <CustomButton title="Exit & Logout" onPress={logout} />
-        <CustomButton
-          title="View Sync Queue"
-          variant="secondary"
-          onPress={queueDemoVote}
-          style={{ marginTop: spacing.md }}
-        />
+        <CustomButton title="Exit & Sign Out" onPress={logout} />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: sharedStyles.screen,
-  content: { padding: spacing.md, flex: 1, justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { flex: 1, paddingHorizontal: spacing.lg, justifyContent: "center" },
   iconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.primaryDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
     marginBottom: spacing.lg,
   },
-  icon: { color: colors.primary, fontSize: 28, fontWeight: '900' },
-  title: { textAlign: 'center', marginBottom: spacing.sm },
-  subtitleText: { textAlign: 'center', marginBottom: spacing.xl },
+  icon: { color: colors.primary, fontSize: 28, fontWeight: "900" },
+  title: { textAlign: "center", marginBottom: spacing.sm },
+  subtitle: { textAlign: "center", marginBottom: spacing.xl },
   receiptBox: {
     backgroundColor: colors.surface,
-    borderStyle: 'dashed',
-    borderWidth: 1,
+    borderStyle: "dashed",
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  receiptLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textAlign: 'center', letterSpacing: 0.5 },
-  receiptHash: { fontSize: 18, fontFamily: 'monospace', fontWeight: '700', color: colors.text, textAlign: 'center', marginVertical: spacing.md },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
-  receiptNote: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 16 },
+  receiptLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: colors.textMuted,
+    textAlign: "center",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  receiptHash: {
+    fontSize: 13,
+    fontFamily: "monospace",
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+    marginVertical: spacing.md,
+    letterSpacing: 0.3,
+  },
+  copyRow: {
+    alignSelf: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    backgroundColor: colors.primaryDim,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    marginBottom: spacing.sm,
+  },
+  copyText: { fontSize: 12, fontWeight: "800", color: colors.primary },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  receiptNote: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: "center",
+    lineHeight: 18,
+  },
 });

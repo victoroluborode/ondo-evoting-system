@@ -1,41 +1,191 @@
-import React, { useContext } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
-import { AuthContext } from '../../context/AuthContext';
-import CustomButton from '../../components/CustomButton';
-import { ScreenHeader, sharedStyles } from '../../components/DesignSystem';
-import { colors, spacing } from '../../theme';
+import React, { useContext, useState, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AuthContext } from "../../context/AuthContext";
+import CustomButton from "../../components/CustomButton";
+import NetworkErrorState from "../../components/NetworkErrorState";
+import { useNetworkRequest } from "../../hooks/useNetworkRequest";
+import { adminRequest } from "../../services/adminApi";
+import { colors, spacing, typography, radius } from "../../theme";
 
 export default function AdminDashboardScreen({ navigation }) {
-  const { logout } = useContext(AuthContext);
+  const insets = useSafeAreaInsets();
+  const { userData, logout } = useContext(AuthContext);
+  const [dashboard, setDashboard] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const { execute, loading, errorType } = useNetworkRequest();
+  const [election, setElection] = useState(null);
+
+  const loadDashboard = useCallback(async () => {
+    const result = await execute(async () => {
+      const [dashboardRes, electionRes] = await Promise.all([
+        adminRequest("/admin/dashboard", userData.token),
+        adminRequest("/admin/election", userData.token),
+      ]);
+
+      return { dashboardRes, electionRes };
+    });
+
+    if (result.success) {
+      setDashboard(result.data.dashboardRes);
+      setElection(result.data.electionRes.election);
+    }
+  }, [userData.token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboard();
+    }, [loadDashboard]),
+  );
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboard();
+    setRefreshing(false);
+  };
 
   const modules = [
-    { title: 'Election Management', icon: '⚙️', sub: 'Configure settings, upload candidates', route: 'ElectionMgmt' },
-    { title: 'Voter Management', icon: '👥', sub: 'Verify records, detect duplicates', route: 'Dashboard' },
-    { title: 'Constituency Management', icon: '🗺️', sub: 'Configure partitions, manage LGAs', route: 'Dashboard' },
-    { title: 'Election Monitoring', icon: '📊', sub: 'Offline sync health, detect anomalies', route: 'OfflineSync' },
-    { title: 'Result Collation', icon: '📈', sub: 'Verify vote integrity, collate results', route: 'ResultCollation' },
-    { title: 'Audit & Security', icon: '🛡️', sub: 'View logs, backup encrypted records', route: 'Dashboard' },
+    {
+      title: "Result Collation",
+      sub: "View results by constituency",
+      route: "ResultCollation",
+    },
+    {
+      title: "Pending Voters",
+      sub: "Review and approve new registrations",
+      route: "PendingVoters",
+    },
+    {
+      title: "Voter Management",
+      sub: "Verify records and detect duplicates",
+      route: "VoterManagement",
+    },
+    {
+      title: "Election Management",
+      sub: "Configure settings and candidates",
+      route: "ElectionMgmt",
+    },
+    {
+      title: "Constituency Management",
+      sub: "Manage constituencies and LGAs",
+      route: "ConstituencyManagement",
+    },
+    {
+      title: "Audit & Security",
+      sub: "View logs and backup records",
+      route: "AuditSecurity",
+    },
   ];
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader
-          title="System Modules"
-          subtitle="Select a module to manage the electoral lifecycle."
-          chip="Admin"
-        />
+  if (errorType === "network" && !dashboard) {
+    return <NetworkErrorState onRetry={loadDashboard} />;
+  }
 
-        <View style={styles.grid}>
-          {modules.map((module) => (
+  const shouldShowElectionStats =
+    election && ["open", "closed", "published"].includes(election.status);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + spacing.xl },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <Text style={[typography.h1, styles.title]}>State Overview</Text>
+        <Text style={[typography.subtitle, styles.subtitle]}>
+          Live registration and turnout figures across Ondo State.
+        </Text>
+
+        {dashboard && shouldShowElectionStats && (
+          <View style={styles.statRow}>
+            <View style={styles.statBlock}>
+              <Text style={styles.statValue}>
+                {dashboard.summary.registeredVoters.toLocaleString()}
+              </Text>
+              <Text style={styles.statLabel}>Registered Voters</Text>
+            </View>
+            <View style={styles.statBlock}>
+              <Text style={styles.statValue}>
+                {dashboard.summary.votesCast.toLocaleString()}
+              </Text>
+              <Text style={styles.statLabel}>Votes Cast</Text>
+            </View>
+            <View style={styles.statBlock}>
+              <Text style={styles.statValue}>
+                {dashboard.summary.turnoutPercentage}%
+              </Text>
+              <Text style={styles.statLabel}>Turnout</Text>
+            </View>
+          </View>
+        )}
+
+        {dashboard && shouldShowElectionStats && (
+          <>
+            <Text style={styles.sectionLabel}>By Constituency</Text>
+            <View style={styles.constituencyList}>
+              {dashboard.constituencies.map((c) => (
+                <View key={c.id} style={styles.constituencyRow}>
+                  <View style={styles.constituencyTextWrap}>
+                    <Text style={styles.constituencyName}>{c.name}</Text>
+                    <Text style={styles.constituencyMeta}>
+                      {c.votesCast.toLocaleString()} /{" "}
+                      {c.registeredVoters.toLocaleString()} voted
+                    </Text>
+                  </View>
+                  <Text style={styles.constituencyTurnout}>
+                    {c.turnoutPercentage}%
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {election && election.status === "draft" && (
+          <View style={styles.draftNotice}>
+            <Text style={styles.draftNoticeText}>
+              Registration and turnout figures will appear here once the
+              election opens.
+            </Text>
+          </View>
+        )}
+
+        <Text style={styles.sectionLabel}>System Modules</Text>
+        <View style={styles.moduleList}>
+          {modules.map((module, index) => (
             <TouchableOpacity
               key={module.title}
-              style={styles.card}
+              style={styles.moduleRow}
+              activeOpacity={0.7}
               onPress={() => navigation.navigate(module.route)}
             >
-              <Text style={styles.cardIcon}>{module.icon}</Text>
-              <Text style={styles.cardTitle}>{module.title}</Text>
-              <Text style={styles.cardSub}>{module.sub}</Text>
+              <View style={styles.moduleIndex}>
+                <Text style={styles.moduleIndexText}>
+                  {String(index + 1).padStart(2, "0")}
+                </Text>
+              </View>
+              <View style={styles.moduleTextWrap}>
+                <Text style={styles.moduleTitle}>{module.title}</Text>
+                <Text style={styles.moduleSub}>{module.sub}</Text>
+              </View>
+              <Text style={styles.moduleArrow}>→</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -44,38 +194,117 @@ export default function AdminDashboardScreen({ navigation }) {
           title="Terminate Admin Session"
           variant="outline"
           onPress={logout}
-          style={{ marginTop: spacing.xxl }}
+          style={{ marginTop: spacing.lg }}
         />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: sharedStyles.screen,
-  content: { padding: spacing.md },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  card: {
-    width: '48%',
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  title: { marginBottom: spacing.xs },
+  subtitle: { marginBottom: spacing.lg },
+  statRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.xl },
+  statBlock: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: colors.white,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.primaryBorder,
+    textAlign: "center",
+    letterSpacing: 0.3,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: colors.textMuted,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: spacing.sm,
+  },
+  constituencyList: { marginBottom: spacing.xl },
+  constituencyRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.base,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  constituencyTextWrap: { flex: 1 },
+  constituencyName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 2,
+  },
+  constituencyMeta: { fontSize: 12, color: colors.textMuted },
+  constituencyTurnout: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+  moduleList: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  moduleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.sm,
+  },
+  moduleIndex: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primaryDim,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  moduleIndexText: { fontSize: 13, fontWeight: "800", color: colors.primary },
+  moduleTextWrap: { flex: 1 },
+  moduleTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 2,
+  },
+  moduleSub: { fontSize: 13, color: colors.textMuted },
+  moduleArrow: { fontSize: 18, color: colors.textLight, fontWeight: "300" },
+  draftNotice: {
+    padding: spacing.base,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: spacing.base,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  cardIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: colors.primaryDim,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: 15,
-    marginBottom: spacing.sm,
+  draftNoticeText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textMid,
+    textAlign: "center",
   },
-  cardTitle: { fontSize: 13, fontWeight: '800', color: colors.text, marginBottom: 6 },
-  cardSub: { fontSize: 10.5, color: colors.textMuted, lineHeight: 16 },
 });

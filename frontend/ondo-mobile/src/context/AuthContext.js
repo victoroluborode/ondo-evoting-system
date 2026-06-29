@@ -19,11 +19,16 @@ export function AuthProvider({ children }) {
     setUserData(null);
   };
 
+  const updateUserData = (patch) => {
+    setUserData((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
   const value = useMemo(() => ({
     userRole,
     userData,
     loginRole,
     logout,
+    updateUserData,
   }), [userRole, userData]);
 
   return (

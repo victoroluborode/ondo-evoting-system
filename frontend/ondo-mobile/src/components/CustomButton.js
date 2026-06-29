@@ -55,13 +55,13 @@ export default function CustomButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 46,
-    borderRadius: radius.md,
+    minHeight: 58,
+    borderRadius: radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.base,
   },
   outlineBorder: {
     borderWidth: 1.5,

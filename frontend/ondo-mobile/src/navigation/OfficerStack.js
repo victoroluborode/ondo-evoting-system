@@ -1,12 +1,13 @@
-import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { colors } from '../theme';
-import RegistrationDashboardScreen from '../screens/officer/RegistrationDashboardScreen';
-import VoterDetailsScreen from '../screens/officer/VoterDetailsScreen';
-import BiometricEnrollmentScreen from '../screens/officer/BiometricEnrollmentScreen';
-import SetVoterPasswordScreen from '../screens/officer/SetVoterPasswordScreen';
-import RegistrationSuccessScreen from '../screens/officer/RegistrationSuccessScreen';
-import OfflineQueueScreen from '../screens/shared/OfflineQueueScreen';
+import React from "react";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { colors } from "../theme";
+import RegistrationDashboardScreen from "../screens/officer/RegistrationDashboardScreen";
+import VinCheckScreen from "../screens/officer/VinCheckScreen";
+import AlreadyRegisteredScreen from "../screens/officer/AlreadyRegisteredScreen";
+import ConfirmVoterDetailsScreen from "../screens/officer/ConfirmVoterDetailsScreen";
+import BiometricEnrollmentScreen from "../screens/officer/BiometricEnrollmentScreen";
+import SetVoterPasswordScreen from "../screens/officer/SetVoterPasswordScreen";
+import RegistrationSuccessScreen from "../screens/officer/RegistrationSuccessScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -16,7 +17,7 @@ export default function OfficerStack() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.primary,
-        headerTitleStyle: { fontWeight: '800', fontSize: 14 },
+        headerTitleStyle: { fontWeight: "900", fontSize: 17 },
         headerShadowVisible: false,
         headerBackTitleVisible: false,
       }}
@@ -24,32 +25,37 @@ export default function OfficerStack() {
       <Stack.Screen
         name="Dashboard"
         component={RegistrationDashboardScreen}
-        options={{ title: 'Registration Portal' }}
+        options={{ title: "Registration Portal" }}
       />
       <Stack.Screen
-        name="VoterDetails"
-        component={VoterDetailsScreen}
-        options={{ title: 'Step 1: Demographics' }}
+        name="VinCheck"
+        component={VinCheckScreen}
+        options={{ title: "Check Voter ID" }}
+      />
+      <Stack.Screen
+        name="AlreadyRegistered"
+        component={AlreadyRegisteredScreen}
+        options={{ title: "Already Registered" }}
+      />
+      <Stack.Screen
+        name="ConfirmVoterDetails"
+        component={ConfirmVoterDetailsScreen}
+        options={{ title: "Confirm Details" }}
       />
       <Stack.Screen
         name="Biometrics"
         component={BiometricEnrollmentScreen}
-        options={{ title: 'Step 2: Biometrics' }}
+        options={{ title: "Capture Biometrics" }}
       />
       <Stack.Screen
         name="SetPassword"
         component={SetVoterPasswordScreen}
-        options={{ title: 'Step 3: Security' }}
+        options={{ title: "Set Password" }}
       />
       <Stack.Screen
         name="Success"
         component={RegistrationSuccessScreen}
         options={{ headerShown: false, gestureEnabled: false }}
-      />
-      <Stack.Screen
-        name="OfflineQueue"
-        component={OfflineQueueScreen}
-        options={{ title: 'Local Sync Queue' }}
       />
     </Stack.Navigator>
   );

@@ -99,8 +99,24 @@ export const sharedStyles = {
   },
   centeredContent: {
     flex: 1,
-    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
+    // removed justifyContent — content now flows top-down naturally
+  },
+  middleContent: {
+    flex: 1,
+    justifyContent: "center",
     padding: spacing.md,
+  },
+  formContent: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
+    // removed justifyContent: 'space-between' — this was the bug.
+    // Content should flow naturally; we push the footer area down
+    // with a spacer view instead (see screens below).
   },
   footer: {
     padding: spacing.md,
@@ -112,7 +128,7 @@ export const sharedStyles = {
 
 const styles = StyleSheet.create({
   header: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   titleRow: {
     flexDirection: 'row',
@@ -129,7 +145,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderRadius: radius.full,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.base,
     paddingVertical: spacing.xs,
     borderWidth: 1,
   },
@@ -152,7 +168,7 @@ const styles = StyleSheet.create({
   chipText: {
     ...typography.label,
     color: colors.primary,
-    fontSize: 9,
+    fontSize: 14,
   },
   chipTextDark: {
     color: colors.white,
@@ -160,15 +176,15 @@ const styles = StyleSheet.create({
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 64,
-    padding: spacing.base,
-    paddingLeft: spacing.md,
+    gap: spacing.base,
+    minHeight: 84,
+    padding: spacing.md,
+    paddingLeft: spacing.ml,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -185,9 +201,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   iconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.md,
+    width: 48,
+    height: 48,
+    borderRadius: radius.lg,
     backgroundColor: colors.primaryDim,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
@@ -195,35 +211,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconText: {
-    fontSize: 17,
+    fontSize: 22,
     color: colors.primary,
   },
   actionText: {
     flex: 1,
   },
   actionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
     color: colors.text,
   },
   actionSub: {
-    fontSize: 11,
-    lineHeight: 17,
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textMuted,
-    marginTop: 3,
+    marginTop: 5,
   },
   rightSlot: {
     marginLeft: spacing.xs,
   },
   chevron: {
     color: colors.border,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
   },
   notice: {
     borderRadius: radius.md,
     borderWidth: 1,
-    padding: spacing.base,
+    padding: spacing.md,
   },
   notice_neutral: {
     backgroundColor: colors.surface,
@@ -255,8 +271,8 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   noticeText: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 22,
     color: colors.textMid,
   },
   noticeText_success: {
@@ -293,7 +309,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     ...typography.label,
-    fontSize: 9,
+    fontSize: 12,
     color: colors.textMuted,
   },
   tabTextActive: {
@@ -305,7 +321,7 @@ const styles = StyleSheet.create({
   statPanel: {
     backgroundColor: colors.primary,
     borderRadius: radius.lg,
-    padding: spacing.lg,
+    padding: spacing.xl,
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
@@ -314,14 +330,14 @@ const styles = StyleSheet.create({
     color: colors.primaryBorder,
   },
   statValue: {
-    fontSize: 46,
-    lineHeight: 54,
+    fontSize: 64,
+    lineHeight: 72,
     fontWeight: '900',
     color: colors.white,
     marginVertical: spacing.xs,
   },
   statFootnote: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.primaryBorder,
     textAlign: 'center',
   },

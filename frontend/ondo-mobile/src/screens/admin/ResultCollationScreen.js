@@ -1,80 +1,226 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import CustomButton from '../../components/CustomButton';
-import { NoticeBox, ScreenHeader, sharedStyles } from '../../components/DesignSystem';
-import { colors, spacing, typography } from '../../theme';
+import React, { useContext, useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AuthContext } from "../../context/AuthContext";
+import NetworkErrorState from "../../components/NetworkErrorState";
+import { useNetworkRequest } from "../../hooks/useNetworkRequest";
+import { adminRequest } from "../../services/adminApi";
+import { colors, spacing, typography, radius } from "../../theme";
 
-export default function ResultCollationScreen() {
-  const [collating, setCollating] = useState(false);
-  const [resultsReady, setResultsReady] = useState(false);
+export default function ResultCollationScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const { userData } = useContext(AuthContext);
 
-  // Simulates integrity verification against encrypted partitioned vote records.
-  const handleCollation = () => {
-    setCollating(true);
-    setTimeout(() => {
-      setCollating(false);
-      setResultsReady(true);
-    }, 2500);
+  const [constituencies, setConstituencies] = useState(null);
+  const [summary, setSummary] = useState(null);
+
+  const { execute, loading, errorType } = useNetworkRequest();
+
+  useEffect(() => {
+    loadConstituencies();
+  }, []);
+
+  const loadConstituencies = async () => {
+    const result = await execute(async () => {
+      const [constituenciesRes, dashboardRes] = await Promise.all([
+        adminRequest("/admin/constituencies", userData.token),
+        adminRequest("/admin/dashboard", userData.token),
+      ]);
+
+      return {
+        constituenciesRes,
+        dashboardRes,
+      };
+    });
+
+    if (result.success) {
+      setConstituencies(result.data.constituenciesRes.constituencies);
+
+      const reportingCount = result.data.dashboardRes.constituencies.filter(
+        (c) => c.votesCast > 0,
+      ).length;
+
+      setSummary({
+        totalVotesCast: result.data.dashboardRes.summary.votesCast,
+        reportingCount,
+        totalConstituencies: result.data.dashboardRes.constituencies.length,
+      });
+    }
   };
 
+  if (errorType === "network" && !constituencies) {
+    return <NetworkErrorState onRetry={loadConstituencies} />;
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader
-          title="Result Collation"
-          subtitle="Fetch and verify isolated vote counts across all 9 Federal Constituencies."
-        />
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + spacing.xl },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[typography.h1, styles.title]}>Result Collation</Text>
 
-        {!resultsReady ? (
-          <View style={styles.actionContainer}>
-            <CustomButton
-              title="Verify Integrity & Collate"
-              onPress={handleCollation}
-              loading={collating}
-              style={{ width: '100%' }}
-            />
+        <Text style={[typography.subtitle, styles.subtitle]}>
+          Select a constituency to view its candidate-level results.
+        </Text>
+
+        {summary && (
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryValue}>
+                {summary.totalVotesCast.toLocaleString()}
+              </Text>
+              <Text style={styles.summaryLabel}>Total Votes Recorded</Text>
+            </View>
+
+            <View style={styles.summaryDivider} />
+
+            <View style={styles.summaryStat}>
+              <Text style={styles.summaryValue}>
+                {summary.reportingCount}/{summary.totalConstituencies}
+              </Text>
+              <Text style={styles.summaryLabel}>Constituencies Reporting</Text>
+            </View>
           </View>
-        ) : (
-          <View style={styles.resultsContainer}>
-            <NoticeBox tone="success">
-              Integrity verified — no cross-constituency anomalies detected across all 9 partitions.
-            </NoticeBox>
+        )}
 
-            <Text style={styles.sectionLabel}>Constituency Results</Text>
-            <View style={styles.resultRow}><Text style={styles.resultLabel}>Akure North / Akure South</Text><Text style={styles.resultValue}>42,105</Text></View>
-            <View style={styles.resultRow}><Text style={styles.resultLabel}>Idanre / Ifedore</Text><Text style={styles.resultValue}>38,720</Text></View>
-            <View style={styles.resultRow}><Text style={styles.resultLabel}>Ondo East / Ondo West</Text><Text style={styles.resultValue}>51,340</Text></View>
-            <Text style={styles.moreText}>+ 6 more constituencies</Text>
+        {loading && !constituencies && (
+          <Text style={styles.loadingText}>Loading constituencies…</Text>
+        )}
 
-            <CustomButton title="Generate Official Election Reports" style={{ marginTop: spacing.xl }} />
+        {constituencies && (
+          <View style={styles.list}>
+            {constituencies.map((c) => (
+              <TouchableOpacity
+                key={c.id}
+                style={styles.row}
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("ConstituencyResult", {
+                    constituencyId: c.id,
+                    constituencyName: c.name,
+                  })
+                }
+              >
+                <View style={styles.rowTextWrap}>
+                  <Text style={styles.rowName}>{c.name}</Text>
+                  <Text style={styles.rowMeta}>{c.code}</Text>
+                </View>
+
+                <Text style={styles.rowArrow}>→</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: sharedStyles.screen,
-  content: { padding: spacing.md },
-  actionContainer: {
-    alignItems: 'center',
-    marginTop: spacing.sm,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  resultsContainer: { marginTop: spacing.md },
-  sectionLabel: { ...typography.label, marginTop: spacing.lg, marginBottom: spacing.sm },
-  resultRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.base,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
+
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+
+  title: {
+    marginBottom: spacing.xs,
+  },
+
+  subtitle: {
+    marginBottom: spacing.lg,
+  },
+
+  summaryCard: {
+    flexDirection: "row",
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+
+  summaryStat: {
+    flex: 1,
+    alignItems: "center",
+  },
+
+  summaryDivider: {
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginHorizontal: spacing.md,
+  },
+
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: colors.white,
+    marginBottom: 4,
+  },
+
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
+    letterSpacing: 0.3,
+  },
+
+  loadingText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: spacing.lg,
+  },
+
+  list: {
+    marginTop: spacing.xs,
+  },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.base,
     marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
-  resultLabel: { fontSize: 12, color: colors.text, fontWeight: '800' },
-  resultValue: { fontSize: 14, color: colors.primary, fontWeight: '900' },
-  moreText: { textAlign: 'center', color: colors.textMuted, fontSize: 12, marginTop: spacing.sm },
+
+  rowTextWrap: {
+    flex: 1,
+  },
+
+  rowName: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 2,
+  },
+
+  rowMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+
+  rowArrow: {
+    fontSize: 16,
+    color: colors.textLight,
+    fontWeight: "300",
+  },
 });

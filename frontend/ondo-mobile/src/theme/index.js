@@ -28,14 +28,14 @@ export const colors = {
 
 export const spacing = {
   xxs: 4,
-  xs: 6,
-  sm: 10,
-  base: 12,
-  md: 16,
-  ml: 20,
-  lg: 24,
-  xl: 36,
-  xxl: 48,
+  xs: 8,
+  sm: 12,
+  base: 14,
+  md: 20,
+  ml: 24,
+  lg: 30,
+  xl: 42,
+  xxl: 56,
 };
 
 export const radius = {
@@ -48,52 +48,52 @@ export const radius = {
 
 export const typography = {
   h1: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 30,
+    fontWeight: '900',
+    color: colors.text,
+    letterSpacing: -0.4,
+  },
+  h2: {
+    fontSize: 22,
+    fontWeight: '900',
     color: colors.text,
     letterSpacing: -0.2,
   },
-  h2: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.1,
-  },
   subtitle: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 24,
     color: colors.textMuted,
   },
   button: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     letterSpacing: 0.2,
   },
   heading1: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 30,
+    fontWeight: '900',
     color: colors.textDark,
   },
   heading2: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.textDark,
   },
   body: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 24,
     color: colors.textMid,
   },
   label: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '900',
     color: colors.textMid,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   mono: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '900',
     color: colors.primary,
     letterSpacing: 1.2,
   },

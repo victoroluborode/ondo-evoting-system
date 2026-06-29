@@ -1,63 +1,117 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
-import { colors, spacing } from '../../theme';
+import React, { useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Animated, StatusBar } from "react-native";
+import { colors, spacing } from "../../theme";
 
 export default function SplashScreen({ navigation }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
+  const translateY = useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 800, useNativeDriver: true }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 700,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
-      setTimeout(() => navigation.replace('RoleSelection'), 1600);
+      setTimeout(() => navigation.replace("RoleSelection"), 1500);
     });
   }, []);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      <Animated.View style={{ opacity, transform: [{ translateY }], alignItems: 'center' }}>
-        <View style={styles.logoRing}>
-          <Text style={styles.logoEmoji}>▣</Text>
+
+      <Animated.View
+        style={{ opacity, transform: [{ translateY }], alignItems: "center" }}
+      >
+        <View style={styles.mark}>
+          <View style={styles.markInnerLine} />
+          <View style={[styles.markInnerLine, styles.markInnerLineShort]} />
         </View>
         <Text style={styles.appName}>ONDO e-VOTE</Text>
         <Text style={styles.tagline}>Bimodal Multi-Constituency Platform</Text>
       </Animated.View>
-      <Text style={styles.inec}>Federal Republic of Nigeria · NDPR Compliant</Text>
+
+      <View style={styles.footer}>
+        <View style={styles.footerRule} />
+        <Text style={styles.footerText}>Federal Republic of Nigeria</Text>
+        <Text style={styles.footerSub}>NDPR Compliant</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  logoRing: {
-    width: 58,
-    height: 58,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
+  container: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mark: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
+    borderColor: "rgba(255,255,255,0.24)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.ml,
+    gap: 6,
   },
-  logoEmoji: { fontSize: 28, color: colors.white, fontWeight: '900' },
-  appName: { fontSize: 25, fontWeight: '900', color: colors.white, letterSpacing: 5, marginBottom: 8 },
+  markInnerLine: {
+    width: 26,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.white,
+  },
+  markInnerLineShort: {
+    width: 16,
+  },
+  appName: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: colors.white,
+    letterSpacing: 5,
+    marginBottom: spacing.xs,
+  },
   tagline: {
-    maxWidth: 210,
-    textAlign: 'center',
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.56)',
+    maxWidth: 220,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.6)",
     letterSpacing: 2,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
-  inec: {
-    position: 'absolute',
-    bottom: 34,
+  footer: {
+    position: "absolute",
+    bottom: spacing.xxl,
+    alignItems: "center",
+  },
+  footerRule: {
+    width: 28,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginBottom: spacing.sm,
+  },
+  footerText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.55)",
+    letterSpacing: 0.5,
+  },
+  footerSub: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.38)',
-    letterSpacing: 1,
+    color: "rgba(255,255,255,0.35)",
+    marginTop: 2,
+    letterSpacing: 0.5,
   },
 });

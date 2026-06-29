@@ -195,6 +195,7 @@
       flex-direction: column;
       overflow: hidden;
       background: var(--bg2);
+      min-height: 0;
     }
 
     .screen.active { display: flex; }
@@ -202,7 +203,9 @@
     .scroll {
       flex: 1;
       overflow-y: auto;
-      padding: 20px 18px;
+      padding: 20px 18px 28px;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
     }
 
     .scroll::-webkit-scrollbar { width: 0; }
@@ -211,8 +214,15 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
+      overflow-y: auto;
       padding: 20px 18px;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .center.middle {
+      justify-content: center;
     }
 
     .footer {
@@ -341,6 +351,30 @@
     .btn.danger { background: var(--red-tint); color: var(--red); border: 1.4px solid #e8c0bc; }
     .btn:disabled { opacity: .48; cursor: not-allowed; }
     .btn + .btn { margin-top: 10px; }
+
+    .text-link {
+      border: 0;
+      background: transparent;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      padding: 10px 0;
+      text-align: center;
+    }
+
+    .split-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .split-actions .btn {
+      margin-top: 0;
+      min-height: 42px;
+      font-size: 12px;
+    }
 
     .card {
       border: 1.4px solid var(--border);
@@ -651,6 +685,12 @@
       line-height: 1.55;
     }
 
+    .mini-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
     .row-card {
       border: 1px solid var(--border);
       border-radius: 9px;
@@ -732,7 +772,6 @@
           <span>9:41</span>
           <div class="signal"><span></span><span></span><span></span><span></span></div>
         </div>
-
         <section id="splash" class="screen active">
           <div class="splash">
             <div class="splash-mark">▣</div>
@@ -744,7 +783,7 @@
         </section>
 
         <section id="roles" class="screen">
-          <div class="center">
+          <div class="center middle">
             <div class="label">Welcome</div>
             <h2>Select Portal</h2>
             <p class="subtitle">Choose your operational role to access the correct system gateway.</p>
@@ -770,14 +809,57 @@
 
         <section id="voterLogin" class="screen">
           <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Voter Login</div><div class="chip">Voter</div></nav>
-          <div class="center">
+          <div class="center middle">
             <h3>Welcome back</h3>
-            <p class="subtitle">Enter your VIN or registered email to access your constituency ballot.</p>
-            <div class="field-group"><label class="label">VIN / Email Address</label><input value="XA9-2027-AKES"></div>
+            <p class="subtitle">Enter your Voter Identification Number and password to continue.</p>
+            <div class="field-group"><label class="label">Voter Identification Number</label><input value="XA9-2027-AKES"></div>
             <div class="field-group"><label class="label">Password</label><input type="password" value="password123"></div>
             <button class="btn primary" onclick="go('bioChoice')">Authenticate</button>
-            <button class="btn secondary" onclick="toast('Password reset will use email or phone OTP.')">Forgot password?</button>
+            <button class="text-link" onclick="go('forgotPassword')">Forgot password?</button>
             <div class="notice"><strong>Next step</strong>Successful login issues a short session token before biometric verification.</div>
+          </div>
+        </section>
+
+        <section id="forgotPassword" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('voterLogin')">‹</button><div class="topnav-title">Password Reset</div></nav>
+          <div class="center middle">
+            <h3>Reset Password</h3>
+            <p class="subtitle">Enter the phone number registered with your voter profile.</p>
+            <div class="field-group"><label class="label">Phone Number</label><input value="+234 801 234 5678"></div>
+            <button class="btn primary" onclick="go('otpReset')">Send OTP</button>
+            <div class="notice"><strong>Offline note</strong>If the polling unit is offline, a supervised officer reset can be queued locally.</div>
+          </div>
+        </section>
+
+        <section id="otpReset" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('forgotPassword')">‹</button><div class="topnav-title">Verify OTP</div></nav>
+          <div class="center middle">
+            <h3>Enter Verification Code</h3>
+            <p class="subtitle">A mock OTP has been sent to the registered phone number.</p>
+            <div class="field-group"><label class="label">OTP Code</label><input value="2841"></div>
+            <button class="btn primary" onclick="go('newPasswordReset')">Verify Code</button>
+            <button class="text-link" onclick="toast('A new OTP was generated.')">Resend Code</button>
+          </div>
+        </section>
+
+        <section id="newPasswordReset" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('otpReset')">‹</button><div class="topnav-title">New Password</div></nav>
+          <div class="center middle">
+            <h3>Create New Password</h3>
+            <p class="subtitle">Your verification code has been accepted. Create a new private password.</p>
+            <div class="field-group"><label class="label">New Password</label><input type="password" value="password123"></div>
+            <div class="field-group"><label class="label">Confirm Password</label><input type="password" value="password123"></div>
+            <button class="btn primary" onclick="toast('Password reset successfully.'); go('voterLogin')">Save Password</button>
+          </div>
+        </section>
+
+        <section id="alreadyVoted" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('voterLogin')">‹</button><div class="topnav-title">Voting Status</div></nav>
+          <div class="center middle" style="text-align:center;">
+            <div class="ring" style="width:70px;height:70px;font-size:28px;margin-inline:auto;color:var(--red);background:var(--red-tint);border-color:#e8c0bc;">!</div>
+            <h3>You Have Already Voted</h3>
+            <p class="subtitle">This VIN has already cast a vote for this election. The system cannot issue another ballot.</p>
+            <button class="btn primary" onclick="go('roles')">Return to Portal</button>
           </div>
         </section>
 
@@ -839,32 +921,31 @@
             </div>
             <div class="detail-table">
               <div class="detail-row"><span>Constituency</span><strong>Akure North / Akure South</strong></div>
-              <div class="detail-row"><span>Encryption</span><strong>AES-256 CBC</strong></div>
+              <div class="detail-row"><span>Ballot status</span><strong>Ready to submit</strong></div>
               <div class="detail-row"><span>Election</span><strong>ONDO-2027-HR</strong></div>
             </div>
             <button class="btn primary" style="margin-top:18px;" onclick="castVote()">Cast Secure Vote</button>
-            <button class="btn outline" onclick="go('ballot')">Go Back & Modify</button>
+            <button class="btn outline" onclick="selectedCandidate=null; go('ballot')">Start Selection Again</button>
           </div>
         </section>
 
         <section id="receipt" class="screen">
-          <div class="center" style="text-align:center;">
+          <div class="center middle" style="text-align:center;">
             <div class="ring" style="width:70px;height:70px;font-size:30px;margin-inline:auto;">✓</div>
             <h3>Vote Cast Successfully</h3>
-            <p class="subtitle">Your encrypted vote has been written to the isolated constituency partition.</p>
+            <p class="subtitle">Your vote has been received. You are now signed out of the voting session.</p>
             <div class="receipt">
-              <div class="label">Anonymous Transaction Token</div>
-              <div class="token" id="voteToken">AES-R8Q2LM5OXA</div>
-              <p class="subtitle" style="font-size:11px;">This token confirms submission without revealing your candidate selection.</p>
+              <div class="label">Receipt Code</div>
+              <div class="token" id="voteToken">EVT-R8Q2LM5O</div>
+              <p class="subtitle" style="font-size:11px;">This code confirms submission without revealing your candidate selection.</p>
             </div>
             <button class="btn primary" onclick="go('roles')">Exit & Logout</button>
-            <button class="btn secondary" onclick="go('syncQueue')">View Sync Queue</button>
           </div>
         </section>
 
         <section id="officerLogin" class="screen">
           <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Officer Login</div><div class="chip">Officer</div></nav>
-          <div class="center">
+          <div class="center middle">
             <h3>Electoral Officer</h3>
             <p class="subtitle">Access the supervised voter registration dashboard.</p>
             <div class="field-group"><label class="label">Officer ID</label><input value="OFF-AKURE-02"></div>
@@ -879,8 +960,21 @@
             <div class="stat"><span>Session Registrations</span><strong>42</strong><small>Akure South LGA · Active partition</small></div>
             <h3>Quick Actions</h3>
             <div class="action-card" onclick="go('voterDetails')"><div class="icon-box">+</div><div class="action-text"><strong>Register New Voter</strong><span>Initiate biometric TEE enrolment</span></div><div class="chev">›</div></div>
-            <div class="action-card" onclick="go('syncQueue')"><div class="icon-box">↻</div><div class="action-text"><strong>View Sync Queue</strong><span>Inspect encrypted records awaiting upload</span></div><div class="chev">›</div></div>
+            <div class="action-card" onclick="go('recentRegs')"><div class="icon-box">≡</div><div class="action-text"><strong>Recent Registrations</strong><span>View records captured this session</span></div><div class="chev">›</div></div>
+            <div class="action-card" onclick="openSyncQueue('officerDash')"><div class="icon-box">↻</div><div class="action-text"><strong>View Sync Queue</strong><span>Inspect encrypted records awaiting upload</span></div><div class="chev">›</div></div>
             <button class="btn secondary" style="margin-top:18px;" onclick="go('roles')">End Session & Logout</button>
+          </div>
+        </section>
+
+        <section id="recentRegs" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('officerDash')">‹</button><div class="topnav-title">Recent Registrations</div></nav>
+          <div class="scroll">
+            <h3>Session Records</h3>
+            <p class="subtitle">Recently captured voters on this officer device.</p>
+            <div class="row-card"><div><strong>Akinwale Tunde</strong><span>XA9-2027-AKES · Biometrics complete</span></div><span class="chip amber">Queued</span></div>
+            <div class="row-card"><div><strong>Bisi Adebayo</strong><span>XA9-2027-AK02 · Biometrics complete</span></div><span class="chip">Synced</span></div>
+            <div class="row-card"><div><strong>Folake Johnson</strong><span>XA9-2027-AK03 · Awaiting password</span></div><span class="chip amber">Draft</span></div>
+            <button class="btn primary" style="margin-top:14px;" onclick="go('voterDetails')">Register Another Voter</button>
           </div>
         </section>
 
@@ -900,21 +994,22 @@
           <nav class="topnav"><button class="back-btn" onclick="go('voterDetails')">‹</button><div class="topnav-title">Register Voter</div></nav>
           <div class="scroll">
             <div class="tabs"><span class="done">Demographics</span><span class="active">Biometrics</span><span>Confirm</span></div>
-            <p class="subtitle">Capture both modalities. Templates are encrypted and stored in the device Trusted Execution Environment.</p>
+            <p class="subtitle">Capture fingerprint and face records for this voter. Raw biometric images will not leave this device.</p>
             <div id="fpEnroll" class="action-card" onclick="markEnrolled('fp')"><div class="icon-box">⌾</div><div class="action-text"><strong>Fingerprint Capture</strong><span>Tap to capture fingerprint template</span></div><div class="chev">›</div></div>
             <div id="faceEnroll" class="action-card" onclick="markEnrolled('face')"><div class="icon-box">◎</div><div class="action-text"><strong>Facial Mapping</strong><span>Tap to extract face embedding</span></div><div class="chev">›</div></div>
             <div class="notice success" id="enrollNotice" style="display:none;">Both templates captured. No raw biometric data will leave this device.</div>
           </div>
-          <div class="footer"><button id="bioContinue" class="btn primary" disabled onclick="go('setPassword')">Confirm & Continue</button></div>
+          <div class="footer"><button id="bioContinue" class="btn primary" disabled onclick="go('setPassword')">Continue Registration</button></div>
         </section>
 
         <section id="setPassword" class="screen">
           <nav class="topnav"><button class="back-btn" onclick="go('enrolBiometrics')">‹</button><div class="topnav-title">Register Voter</div></nav>
           <div class="scroll">
             <div class="tabs"><span class="done">Demographics</span><span class="done">Biometrics</span><span class="active">Confirm</span></div>
-            <div class="field-group"><label class="label">Set Voter Password</label><input type="password" value="password123"></div>
-            <div class="field-group"><label class="label">Confirm Password</label><input type="password" value="password123"></div>
-            <button class="btn primary" style="margin-top:16px;" onclick="go('regSuccess')">Finalize Registration</button>
+            <div class="notice"><strong>Private voter step</strong>Hand the device to the voter. The officer must not know or enter this passcode.</div>
+            <div class="field-group"><label class="label">New Private Passcode</label><input type="password" value="password123"></div>
+            <div class="field-group"><label class="label">Confirm Passcode</label><input type="password" value="password123"></div>
+            <button class="btn primary" style="margin-top:16px;" onclick="go('regSuccess')">Complete Registration</button>
           </div>
         </section>
 
@@ -923,10 +1018,10 @@
             <div class="tabs"><span class="done">Demographics</span><span class="done">Biometrics</span><span class="active">Confirm</span></div>
             <div class="ring" style="width:70px;height:70px;font-size:30px;margin-inline:auto;">✓</div>
             <h3>Voter Registered</h3>
-            <p class="subtitle">Identity and biometrics written to the Akure South partition. Record is queued for server sync.</p>
+            <p class="subtitle">The voter record has been saved for Akure South LGA. It will sync automatically when connection is available.</p>
             <div class="detail-table">
               <div class="detail-row"><span>VIN</span><strong>XA9-2027-AKES</strong></div>
-              <div class="detail-row"><span>Partition</span><strong>Akure South LGA</strong></div>
+              <div class="detail-row"><span>LGA</span><strong>Akure South LGA</strong></div>
               <div class="detail-row"><span>Sync status</span><strong><span class="chip amber">Queued</span></strong></div>
             </div>
             <button class="btn primary" style="margin-top:18px;" onclick="go('voterDetails')">Register Next Voter</button>
@@ -936,7 +1031,7 @@
 
         <section id="adminLogin" class="screen">
           <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">System Admin</div><div class="chip dark">Admin</div></nav>
-          <div class="center">
+          <div class="center middle">
             <h3>Admin Access</h3>
             <p class="subtitle">Multi-factor authentication is required before entry to the admin portal.</p>
             <div id="adminCreds">
@@ -954,6 +1049,26 @@
           </div>
         </section>
 
+        <section id="sessionExpired" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Session Expired</div></nav>
+          <div class="center middle" style="text-align:center;">
+            <div class="ring" style="width:70px;height:70px;font-size:28px;margin-inline:auto;">⌁</div>
+            <h3>Session Expired</h3>
+            <p class="subtitle">The temporary voting session has expired after inactivity. Please log in again to continue.</p>
+            <button class="btn primary" onclick="go('voterLogin')">Log In Again</button>
+          </div>
+        </section>
+
+        <section id="accessDenied" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Access Denied</div></nav>
+          <div class="center middle" style="text-align:center;">
+            <div class="ring" style="width:70px;height:70px;font-size:28px;margin-inline:auto;color:var(--red);background:var(--red-tint);border-color:#e8c0bc;">×</div>
+            <h3>Access Denied</h3>
+            <p class="subtitle">This account does not have permission to access that module. The attempt has been recorded.</p>
+            <button class="btn primary" onclick="go('roles')">Return to Secure Gateway</button>
+          </div>
+        </section>
+
         <section id="adminDash" class="screen">
           <nav class="topnav"><div class="topnav-title">Command Center</div><div class="chip dark">Admin</div></nav>
           <div class="scroll">
@@ -961,13 +1076,51 @@
             <p class="subtitle">Select a module to manage the electoral lifecycle.</p>
             <div class="grid">
               <div class="module" onclick="go('electionMgmt')"><div class="icon-box">⚙</div><strong>Election Mgmt</strong><span>Configure settings, upload candidates</span></div>
-              <div class="module" onclick="toast('Voter management module placeholder')"><div class="icon-box">♙</div><strong>Voter Mgmt</strong><span>Verify records, detect duplicates</span></div>
-              <div class="module" onclick="toast('Constituency management module placeholder')"><div class="icon-box">⌁</div><strong>Constituency</strong><span>Partitions and LGA config</span></div>
+              <div class="module" onclick="go('voterMgmt')"><div class="icon-box">♙</div><strong>Voter Mgmt</strong><span>Verify records, detect duplicates</span></div>
+              <div class="module" onclick="go('constituencyMgmt')"><div class="icon-box">⌁</div><strong>Constituency</strong><span>Partitions and LGA config</span></div>
               <div class="module" onclick="go('syncMonitor')"><div class="icon-box">⌄</div><strong>Monitoring</strong><span>Offline sync and anomalies</span></div>
               <div class="module" onclick="go('results')"><div class="icon-box">▥</div><strong>Result Collation</strong><span>Verify and collate results</span></div>
-              <div class="module" onclick="toast('Audit and security module placeholder')"><div class="icon-box">◇</div><strong>Audit & Security</strong><span>Logs and encrypted backups</span></div>
+              <div class="module" onclick="go('auditSecurity')"><div class="icon-box">◇</div><strong>Audit & Security</strong><span>Logs and encrypted backups</span></div>
             </div>
             <button class="btn secondary" style="margin-top:18px;" onclick="go('roles')">Terminate Admin Session</button>
+          </div>
+        </section>
+
+        <section id="voterMgmt" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('adminDash')">‹</button><div class="topnav-title">Voter Management</div></nav>
+          <div class="scroll">
+            <h3>Voter Records</h3>
+            <p class="subtitle">Review registered voters and duplicate-risk checks across constituencies.</p>
+            <div class="stat"><span>Total Registered Voters</span><strong>1,284</strong><small>Mock register for prototype review</small></div>
+            <div class="label">Recent Records</div>
+            <div class="row-card"><div><strong>Akinwale Tunde</strong><span>XA9-2027-AKES · Akure South</span></div><span class="chip">Verified</span></div>
+            <div class="row-card"><div><strong>Bisola Adebayo</strong><span>XA9-2027-ONDO · Ondo West</span></div><span class="chip amber">Review</span></div>
+            <div class="row-card"><div><strong>Samuel Ibitoye</strong><span>XA9-2027-OKIT · Okitipupa</span></div><span class="chip">Verified</span></div>
+            <button class="btn outline" style="margin-top:14px;" onclick="toast('Duplicate scan completed. One record flagged for review.')">Run Duplicate Scan</button>
+          </div>
+        </section>
+
+        <section id="constituencyMgmt" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('adminDash')">‹</button><div class="topnav-title">Constituency Management</div></nav>
+          <div class="scroll">
+            <h3>LGA Mapping</h3>
+            <p class="subtitle">Manage LGA to Federal Constituency routing for strict ballot isolation.</p>
+            <div class="row-card"><div><strong>Akure North / Akure South</strong><span>Akure North LGA, Akure South LGA</span></div><span class="chip">Active</span></div>
+            <div class="row-card"><div><strong>Ondo East / Ondo West</strong><span>Ondo East LGA, Ondo West LGA</span></div><span class="chip">Active</span></div>
+            <div class="row-card"><div><strong>Okitipupa / Irele</strong><span>Okitipupa LGA, Irele LGA</span></div><span class="chip">Active</span></div>
+            <div class="notice"><strong>Partition rule</strong>A voter only receives candidates from the constituency mapped to their registered LGA.</div>
+          </div>
+        </section>
+
+        <section id="auditSecurity" class="screen">
+          <nav class="topnav"><button class="back-btn" onclick="go('adminDash')">‹</button><div class="topnav-title">Audit & Security</div></nav>
+          <div class="scroll">
+            <h3>Security Events</h3>
+            <p class="subtitle">Review sensitive system activity and integrity checks.</p>
+            <div class="row-card"><div><strong>Admin Login</strong><span>ADM-ONDO-001 · RBAC granted</span></div><span class="chip">OK</span></div>
+            <div class="row-card"><div><strong>Vote Integrity Check</strong><span>SHA-256 hash verification passed</span></div><span class="chip">OK</span></div>
+            <div class="row-card"><div><strong>Offline Queue Sync</strong><span>160 encrypted records pending review</span></div><span class="chip amber">Watch</span></div>
+            <div class="row-card"><div><strong>Unauthorized Module Attempt</strong><span>Blocked access from invalid role</span></div><span class="chip red">Blocked</span></div>
           </div>
         </section>
 
@@ -987,14 +1140,14 @@
         <section id="results" class="screen">
           <nav class="topnav"><button class="back-btn" onclick="go('adminDash')">‹</button><div class="topnav-title">Result Collation</div></nav>
           <div class="scroll">
-            <p class="subtitle">Fetch and verify isolated vote counts across all 9 Federal Constituencies.</p>
+            <p class="subtitle">Verify candidate-level results by constituency before reports are generated.</p>
             <button class="btn primary" style="margin-top:18px;" onclick="showResults()">Verify Integrity & Collate</button>
             <div id="resultRows" style="display:none;">
-              <div class="notice success"><strong>Integrity verified</strong>No cross-constituency anomalies detected across all 9 partitions.</div>
-              <div class="label" style="margin-top:18px;">Constituency Results</div>
-              <div class="row-card"><strong>Akure North / Akure South</strong><strong class="green-text">42,105</strong></div>
-              <div class="row-card"><strong>Idanre / Ifedore</strong><strong class="green-text">38,720</strong></div>
-              <div class="row-card"><strong>Ondo East / Ondo West</strong><strong class="green-text">51,340</strong></div>
+              <div class="notice success"><strong>Integrity verified</strong>Candidate totals are ready for administrative review.</div>
+              <div class="label" style="margin-top:18px;">Akure North / Akure South</div>
+              <div class="row-card"><strong>Adewale Adeleke · APC</strong><strong class="green-text">18,920</strong></div>
+              <div class="row-card"><strong>Olumide Bakare · PDP</strong><strong class="green-text">15,804</strong></div>
+              <div class="row-card"><strong>Chidi Obi · LP</strong><strong class="green-text">7,381</strong></div>
             </div>
           </div>
         </section>
@@ -1011,7 +1164,7 @@
         </section>
 
         <section id="syncQueue" class="screen">
-          <nav class="topnav"><button class="back-btn" onclick="go('roles')">‹</button><div class="topnav-title">Local Sync Queue</div></nav>
+          <nav class="topnav"><button class="back-btn" onclick="go(syncBackTarget)">‹</button><div class="topnav-title">Local Sync Queue</div></nav>
           <div class="scroll">
             <p class="subtitle">Encrypted records are held securely on-device until a connection is available.</p>
             <div class="row-card"><div><span>Network Status</span><strong class="green-text">Connected (Online)</strong></div><span class="chip">Live</span></div>
@@ -1039,6 +1192,7 @@
     ];
 
     let selectedCandidate = null;
+    let syncBackTarget = 'roles';
     const enroll = { fp: false, face: false };
 
     function go(id) {
@@ -1052,6 +1206,11 @@
     function scan(type) {
       go(type);
       setTimeout(() => go('ballot'), 1300);
+    }
+
+    function openSyncQueue(backTarget = 'roles') {
+      syncBackTarget = backTarget;
+      go('syncQueue');
     }
 
     function renderCandidates() {
@@ -1076,7 +1235,7 @@
     }
 
     function castVote() {
-      const token = 'AES-' + Math.random().toString(36).slice(2, 12).toUpperCase();
+      const token = 'EVT-' + Math.random().toString(36).slice(2, 10).toUpperCase();
       document.getElementById('voteToken').textContent = token;
       go('receipt');
     }
@@ -1086,7 +1245,7 @@
       const card = document.getElementById(type === 'fp' ? 'fpEnroll' : 'faceEnroll');
       card.classList.add('selected');
       card.querySelector('.action-text strong').textContent = type === 'fp' ? 'Fingerprint Captured' : 'Facial Mapping Complete';
-      card.querySelector('.action-text span').textContent = type === 'fp' ? 'Template stored in TEE · 3 fingers' : 'Face embedding stored in TEE';
+      card.querySelector('.action-text span').textContent = type === 'fp' ? 'Fingerprint template saved securely' : 'Face template saved securely';
       card.querySelector('.chev').textContent = '✓';
       if (enroll.fp && enroll.face) {
         document.getElementById('bioContinue').disabled = false;

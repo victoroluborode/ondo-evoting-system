@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme';
 
 export default function CustomInput({
@@ -7,40 +7,74 @@ export default function CustomInput({
   error,
   ...props
 }) {
+  const isPassword = Boolean(props.secureTextEntry);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+
   return (
     <View style={styles.container}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <TextInput
+      <View
         style={[
-          styles.input,
+          styles.inputShell,
           error && styles.inputError,
         ]}
-        placeholderTextColor={colors.textMuted}
-        {...props}
-      />
+      >
+        <TextInput
+          style={styles.input}
+          placeholderTextColor={colors.textMuted}
+          {...props}
+          secureTextEntry={isPassword && !passwordVisible}
+        />
+        {isPassword ? (
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.eyeText}>{passwordVisible ? 'Hide' : 'Show'}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: spacing.md },
+  container: { marginBottom: spacing.ml },
   label: {
     ...typography.label,
     color: colors.textMid,
-    marginBottom: 6,
+    marginBottom: spacing.xs,
+  },
+  inputShell: {
+    minHeight: 58,
+    borderWidth: 1.6,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   input: {
-    minHeight: 42,
-    borderWidth: 1.2,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.base,
+    flex: 1,
+    minHeight: 56,
+    paddingHorizontal: spacing.md,
     color: colors.text,
-    backgroundColor: colors.surface,
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
   },
   inputError: { borderColor: colors.error },
   errorText: { color: colors.error, fontSize: 12, marginTop: 4 },
+  eyeButton: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyeText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
 });
