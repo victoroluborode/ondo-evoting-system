@@ -76,4 +76,23 @@ async function getBallot(req, res) {
   }
 }
 
-module.exports = { getBallot, listConstituencies };
+/**
+ * Returns whether a House of Representatives election is currently open for voting.
+ * Used by voter-facing screens to avoid sending someone through accreditation
+ * only to discover voting isn't open yet.
+ */
+async function getElectionStatus(req, res) {
+  try {
+    const election = await getOpenElection();
+    res.json({
+      success: true,
+      isOpen: Boolean(election),
+      election: election ? { id: election.id, name: election.name } : null,
+    });
+  } catch (error) {
+    console.error("Election status fetch error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+module.exports = { getBallot, listConstituencies, getElectionStatus };

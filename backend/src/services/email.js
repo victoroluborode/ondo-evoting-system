@@ -17,4 +17,21 @@ async function sendPasswordResetEmail({ to, resetUrl }) {
   throw new Error(`Unsupported EMAIL_PROVIDER: ${process.env.EMAIL_PROVIDER}`);
 }
 
-module.exports = { sendPasswordResetEmail };
+
+async function sendAdminOtpEmail({ to, otp }) {
+  if (process.env.EMAIL_PROVIDER === "console" || !process.env.EMAIL_PROVIDER) {
+    console.log(
+      JSON.stringify({
+        level: "info",
+        event: "admin_otp_email",
+        to,
+        message: `Your Ondo e-Vote admin verification code is ${otp}. It expires in 5 minutes.`,
+      }),
+    );
+    return { provider: "console", sent: true };
+  }
+
+  throw new Error(`Unsupported EMAIL_PROVIDER: ${process.env.EMAIL_PROVIDER}`);
+}
+
+module.exports = { sendPasswordResetEmail, sendAdminOtpEmail };

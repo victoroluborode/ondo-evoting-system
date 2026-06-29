@@ -5,6 +5,7 @@ const {
   getConstituencyResults,
   getOfflineVotingPackage,
   syncOfflineVotes,
+  verifyReceipt,
 } = require("../services/voteService");
 
 const router = express.Router();
@@ -24,6 +25,9 @@ router.get(
   authenticateToken,
   getOfflineVotingPackage,
 );
+
+// routes/votes.js — public, no auth, since proving your own receipt shouldn't require being logged in
+router.get("/verify-receipt/:receiptCode", verifyReceipt);
 
 /**
  * POST /api/votes/sync

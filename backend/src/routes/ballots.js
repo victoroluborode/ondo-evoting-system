@@ -1,6 +1,6 @@
 const express = require("express");
 const { authenticateToken } = require("../middleware/auth");
-const { getBallot, listConstituencies } = require("../services/ballotService");
+const { getBallot, listConstituencies, getElectionStatus } = require("../services/ballotService");
 
 const router = express.Router();
 
@@ -11,9 +11,16 @@ const router = express.Router();
 router.get("/constituencies", listConstituencies);
 
 /**
+ * GET /api/ballots/election-status
+ * Returns the current election status.
+ */
+router.get("/election-status", getElectionStatus);
+
+/**
  * GET /api/ballots/:constituencyId
  * Returns candidates for the authenticated voter's constituency.
  */
 router.get("/:constituencyId", authenticateToken, getBallot);
+
 
 module.exports = router;

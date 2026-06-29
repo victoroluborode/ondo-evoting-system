@@ -24,11 +24,15 @@ INSERT INTO local_government_areas (name, constituency_id) VALUES
 ('Ondo East',         8), ('Ondo West',        8),
 ('Owo',               9), ('Ose',              9);
 
-INSERT INTO election_officers (full_name, email, password_hash, role) VALUES
-('INEC Demo Registration Officer', 'officer@inec.ondo.gov.ng', '$2b$10$KkG6lDg3kbmrtb4BU2YaruNSmi3SCmJtdl0soljhL1UangOvZBzAy', 'registration_officer');
+INSERT INTO election_officers
+    (officer_code, full_name, email, password_hash, role)
+VALUES
+    ('OFF-1002', 'INEC Demo Registration Officer', 'officer@inec.ondo.gov.ng', '$2b$10$KkG6lDg3kbmrtb4BU2YaruNSmi3SCmJtdl0soljhL1UangOvZBzAy', 'registration_officer');
 
-INSERT INTO election_admins (full_name, email, password_hash, role) VALUES
-('INEC Demo State Administrator', 'admin@inec.ondo.gov.ng', '$2b$12$WZAFoaJKOpDry5yQNMk7Ver68Vfug7TgE8cVUoPTVvPaY4vJZBglm', 'state_admin');
+INSERT INTO election_admins
+    (admin_code, full_name, email, password_hash, role)
+VALUES
+    ('ADM-ONDO-001', 'INEC Demo State Administrator', 'admin@inec.ondo.gov.ng', '$2b$12$WZAFoaJKOpDry5yQNMk7Ver68Vfug7TgE8cVUoPTVvPaY4vJZBglm', 'state_admin');
 
 INSERT INTO elections (name, election_type, status) VALUES
 ('House of Representatives Elections 2027', 'house_of_representatives', 'draft');

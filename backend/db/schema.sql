@@ -34,6 +34,7 @@ CREATE TABLE inec_voter_register (
 -- Table 4: INEC Officers
 CREATE TABLE election_officers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    officer_code VARCHAR(40) UNIQUE,
     full_name VARCHAR(200) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
@@ -45,6 +46,7 @@ CREATE TABLE election_officers (
 -- Table 5: Election Administrators
 CREATE TABLE election_admins (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    admin_code VARCHAR(40) UNIQUE,
     full_name VARCHAR(200) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
@@ -213,6 +215,7 @@ CREATE TABLE password_reset_tokens (
         REFERENCES voters(id, constituency_id)
 );
 
+
 -- Indexes for performance
 CREATE INDEX idx_voters_vin ON voters(vin);
 CREATE INDEX idx_voters_email ON voters(email);
@@ -228,3 +231,4 @@ CREATE UNIQUE INDEX idx_votes_offline_vote_id ON votes(offline_vote_id, constitu
 CREATE INDEX idx_voter_auth_sessions_voter ON voter_auth_sessions(voter_id, constituency_id);
 CREATE INDEX idx_voter_auth_sessions_voting_token ON voter_auth_sessions(voting_token_id);
 CREATE INDEX idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+

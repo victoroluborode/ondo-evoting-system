@@ -23,12 +23,21 @@ const {
   closeElection,
   openElection,
   publishElection,
+  archiveElection,
   updateCandidate,
   updateConstituency,
   updateElection,
   updateLga,
   updateOfficer,
   updateParty,
+  listVoters,
+  listAuditLogs,
+  getElection,
+  verifyOtp,
+  listPendingVoters,
+  approveVoter,
+  rejectVoter,
+  reinstateVoter,
 } = require("../services/adminService");
 
 const router = express.Router();
@@ -38,7 +47,17 @@ const router = express.Router();
  * Authenticates a senior INEC administrator.
  */
 router.post("/login", login);
+router.post("/verify-otp", verifyOtp);
+router.get("/voters", authenticateAdmin, listVoters);
 
+// routes/admin.js
+router.get("/voters/pending", authenticateAdmin, listPendingVoters);
+router.post("/voters/:id/approve", authenticateAdmin, approveVoter);
+router.post("/voters/:id/reject", authenticateAdmin, rejectVoter);
+// routes/admin.js
+router.post("/voters/:id/reinstate", authenticateAdmin, reinstateVoter);
+router.get("/audit-logs", authenticateAdmin, listAuditLogs);
+router.get("/election", authenticateAdmin, getElection);
 /**
  * GET /api/admin/dashboard
  * Returns state-wide registration and turnout metrics.
@@ -70,6 +89,7 @@ router.patch("/elections/:id", authenticateAdmin, updateElection);
 router.post("/elections/:id/open", authenticateAdmin, openElection);
 router.post("/elections/:id/close", authenticateAdmin, closeElection);
 router.post("/elections/:id/publish", authenticateAdmin, publishElection);
+router.post("/elections/:id/archive", authenticateAdmin, archiveElection);
 router.delete("/elections/:id", authenticateAdmin, deleteElection);
 
 /**

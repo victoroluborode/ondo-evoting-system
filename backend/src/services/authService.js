@@ -18,7 +18,19 @@ const {
   sendMockPasswordResetOtp,
   sendMockRegistrationSms,
 } = require("./sms");
-const { encrypt, sha256 } = require("../utils/encryption");
+const {
+  encrypt,
+  sha256,
+  encryptJson,
+  decryptJson,
+} = require("../utils/encryption");
+const { getOpenElection } = require("./electionLifecycle");
+const {
+  extractEmbedding,
+  compareEmbeddings,
+  FACE_MATCH_THRESHOLD,
+} = require("./faceService");
+const { recordAuditLog } = require("../utils/auditLog");
 
 /**
  * Loads a VIN from the mock INEC voter register and checks whether it is eligible.
@@ -97,15 +109,22 @@ async function validateVin(req, res) {
  */
 async function officerLogin(req, res) {
   try {
-    const { email, password } = req.body;
+    const { identifier, officerId, email, password } = req.body;
+    const loginIdentifier = String(identifier || officerId || email || "").trim();
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({
+        error: "Officer ID or email and password are required",
+      });
     }
 
     const result = await pool.query(
-      "SELECT id, full_name, email, password_hash, role, status FROM election_officers WHERE email = $1",
-      [email.toLowerCase()],
+      `SELECT id, officer_code, full_name, email, password_hash, role, status
+       FROM election_officers
+       WHERE LOWER(email) = LOWER($1)
+          OR UPPER(officer_code) = UPPER($1)
+       LIMIT 1`,
+      [loginIdentifier],
     );
 
     if (result.rows.length === 0) {
@@ -139,12 +158,30 @@ async function officerLogin(req, res) {
     res.json({
       success: true,
       token,
+      tokenType: "Bearer",
+      role: "officer",
       officer: {
         id: officer.id,
+        officerId: officer.officer_code,
         fullName: officer.full_name,
         email: officer.email,
         role: officer.role,
       },
+      user: {
+        id: officer.id,
+        loginId: officer.officer_code,
+        fullName: officer.full_name,
+        email: officer.email,
+        role: "officer",
+        permissionsRole: officer.role,
+      },
+    });
+    recordAuditLog({
+      actorType: "officer",
+      actorId: officer.id,
+      actorLabel: officer.officer_code,
+      action: "officer.login",
+      targetSummary: officer.full_name,
     });
   } catch (error) {
     console.error("Officer login error:", error);
@@ -166,13 +203,12 @@ async function registerVoter(req, res) {
       constituencyId,
       lgaId,
       fingerprintTemplate,
-      faceTemplate,
+      faceImageBase64,
     } = req.body;
 
     if (!vin || !fullName || !password || !constituencyId || !lgaId) {
       return res.status(400).json({
-        error:
-          "VIN, full name, password, constituency, and LGA are required",
+        error: "VIN, full name, password, constituency, and LGA are required",
       });
     }
 
@@ -182,7 +218,7 @@ async function registerVoter(req, res) {
       });
     }
 
-    if (!fingerprintTemplate || !faceTemplate) {
+    if (!fingerprintTemplate || !faceImageBase64) {
       return res.status(400).json({
         error: "Fingerprint and face biometrics are both required",
       });
@@ -218,21 +254,40 @@ async function registerVoter(req, res) {
 
     const passwordHash = await bcrypt.hash(password, 12);
     const normalizedEmail = email ? String(email).toLowerCase() : null;
+
     const offlineAuthHash = sha256(
       `${vin}:${normalizedEmail || phoneNumber || "no-contact"}:${constituencyId}`,
     );
 
-    // Biometric values are stored as enrollment artifacts for now.
-    // Fingerprint and face matching are planned for a later project phase.
+    let faceEmbedding;
+
+    console.log(
+      "faceImageBase64 type:",
+      typeof faceImageBase64,
+      "length:",
+      faceImageBase64?.length,
+    );
+
+    try {
+      const imageBytes = Buffer.from(faceImageBase64, "base64");
+      faceEmbedding = await extractEmbedding(imageBytes);
+    } catch (error) {
+      console.error("Face embedding failed:", error);
+      return res.status(400).json({
+        error:
+          error.message || "Could not process the submitted face photograph",
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO voters
         (vin, full_name, email, phone_number, password_hash, constituency_id, lga_id,
          fingerprint_template_encrypted, face_template_encrypted,
          fingerprint_enrolled, face_enrolled, biometric_enrolled_at,
-         offline_auth_hash, registered_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, TRUE, NOW(), $10, $11)
+         offline_auth_hash, registered_by, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, TRUE, NOW(), $10, $11, 'pending_review')
        RETURNING id, vin, full_name, email, phone_number, constituency_id, lga_id,
-                 fingerprint_enrolled, face_enrolled, biometric_enrolled_at, created_at`,
+                 fingerprint_enrolled, face_enrolled, biometric_enrolled_at, status, created_at`,
       [
         vin.toUpperCase(),
         fullName,
@@ -242,9 +297,10 @@ async function registerVoter(req, res) {
         constituencyId,
         lgaId,
         fingerprintTemplate ? encrypt(fingerprintTemplate) : null,
-        faceTemplate ? encrypt(faceTemplate) : null,
+        encryptJson(faceEmbedding),
         offlineAuthHash,
-        req.user.officerId,
+        null,
+        Boolean(fingerprintTemplate),
       ],
     );
 
@@ -259,11 +315,25 @@ async function registerVoter(req, res) {
       success: true,
       voter,
       offlineAuthHash,
+      message: "Voter registration submitted and awaiting admin review",
+    });
+
+    recordAuditLog({
+      actorType: "officer",
+      actorId: req.user?.officerId || null,
+      action: "voter.registered.pending_review",
+      targetSummary: `${voter.full_name} (${voter.vin})`,
+      metadata: {
+        constituencyId: voter.constituency_id,
+        lgaId: voter.lga_id,
+        status: voter.status,
+      },
     });
   } catch (error) {
     if (error.code === "23505") {
       return res.status(409).json({
-        error: "A voter with this VIN or email already exists in the constituency",
+        error:
+          "A voter with this VIN or email already exists in the constituency",
       });
     }
 
@@ -303,12 +373,15 @@ async function voterLogin(req, res) {
 
     const voter = result.rows[0];
 
-    if (voter.status !== "registered") {
-      return res.status(403).json({ error: "Voter account is not active" });
+    if (voter.status === "pending_review") {
+      return res.status(403).json({
+        error:
+          "Your registration is awaiting review. You'll be notified once it's approved.",
+      });
     }
 
-    if (voter.has_voted) {
-      return res.status(403).json({ error: "Voter has already voted" });
+    if (voter.status !== "registered") {
+      return res.status(403).json({ error: "Voter account is not active" });
     }
 
     const passwordMatches = await bcrypt.compare(password, voter.password_hash);
@@ -317,13 +390,51 @@ async function voterLogin(req, res) {
       return res.status(401).json({ error: "Invalid voter credentials" });
     }
 
+    const openElection = await getOpenElection();
+
+    if (openElection) {
+      const existingVote = await pool.query(
+        `SELECT 1 FROM votes WHERE voter_id = $1 AND constituency_id = $2 AND election_id = $3 LIMIT 1`,
+        [voter.id, voter.constituency_id, openElection.id],
+      );
+
+      if (existingVote.rows.length > 0) {
+        return res.status(403).json({ error: "Voter has already voted" });
+      }
+    }
+
     const sessionToken = await createPartialVoterSession(voter);
+
+    recordAuditLog({
+      actorType: "voter",
+      actorId: voter.id,
+      actorLabel: voter.vin,
+      action: "voter.login",
+      targetSummary: voter.full_name,
+    });
 
     res.json({
       success: true,
       sessionToken,
+      tokenType: "Partial",
+      role: "voter",
       constituencyId: voter.constituency_id,
       fullName: voter.full_name,
+      voter: {
+        id: voter.id,
+        vin: voter.vin,
+        fullName: voter.full_name,
+        email: voter.email,
+        constituencyId: voter.constituency_id,
+      },
+      user: {
+        id: voter.id,
+        vin: voter.vin,
+        fullName: voter.full_name,
+        email: voter.email,
+        role: "voter",
+        constituencyId: voter.constituency_id,
+      },
       biometricEnrollment: {
         fingerprint: Boolean(voter.fingerprint_enrolled),
         face: Boolean(voter.face_enrolled),
@@ -342,7 +453,8 @@ async function voterLogin(req, res) {
  */
 async function verifyBiometric(req, res) {
   try {
-    const { sessionToken, method, biometricVerified } = req.body;
+    const { sessionToken, method, biometricVerified, faceImageBase64 } =
+      req.body;
 
     if (!sessionToken || !method) {
       return res.status(400).json({
@@ -356,6 +468,18 @@ async function verifyBiometric(req, res) {
 
     const voter = await getVoterForPartialSession(sessionToken);
 
+    // in authService.js's verifyBiometric, right after `const voter = await getVoterForPartialSession(sessionToken);`:
+
+    const lockField =
+      method === "fingerprint" ? "fingerprint_locked_at" : "face_locked_at";
+    if (voter[lockField]) {
+      return res.status(401).json({
+        error: `${method === "fingerprint" ? "Fingerprint" : "Face"} verification is locked for this session`,
+        locked: true,
+        attemptsRemaining: 0,
+      });
+    }
+
     const methodEnrollmentField =
       method === "fingerprint" ? "fingerprint_enrolled" : "face_enrolled";
 
@@ -365,11 +489,68 @@ async function verifyBiometric(req, res) {
       });
     }
 
-    if (biometricVerified !== true) {
-      const failure = await recordBiometricFailure(voter);
+    let verified = false;
+    let matchDetail = null;
+
+    if (method === "fingerprint") {
+      // Fingerprint is a device-level authentication signal, not a server-verifiable
+      // template match. The device's BiometricPrompt result is trusted as-is here —
+      // see project documentation for the rationale behind this design choice.
+      verified = biometricVerified === true;
+    }
+
+    // fix 2: log the actual failure reason inside the catch, don't fail silently
+    if (method === "face") {
+      if (!faceImageBase64) {
+        return res
+          .status(400)
+          .json({ error: "A face photo is required for face verification" });
+      }
+
+      try {
+        const probeBytes = Buffer.from(faceImageBase64, "base64");
+        const probeEmbedding = await extractEmbedding(probeBytes);
+
+        const storedResult = await pool.query(
+          `SELECT face_template_encrypted FROM voters WHERE id = $1 AND constituency_id = $2`,
+          [voter.id, voter.constituency_id],
+        );
+
+        if (
+          storedResult.rows.length === 0 ||
+          !storedResult.rows[0].face_template_encrypted
+        ) {
+          throw new Error("No enrolled face template found for this voter");
+        }
+
+        const enrolledEmbedding = decryptJson(
+          storedResult.rows[0].face_template_encrypted,
+        );
+        const comparison = compareEmbeddings(enrolledEmbedding, probeEmbedding);
+
+        console.log(
+          `Face match attempt — similarity: ${comparison.similarity.toFixed(4)}, threshold: ${FACE_MATCH_THRESHOLD}, matched: ${comparison.matched}`,
+        );
+        verified = comparison.matched;
+        matchDetail = { similarity: comparison.similarity };
+      } catch (faceError) {
+        console.error("Face comparison failed:", faceError.message); // ← this is the missing visibility
+        verified = false;
+        matchDetail = { error: faceError.message };
+      }
+    }
+
+    if (!verified) {
+      const failure = await recordBiometricFailure(voter, method);
       return res.status(401).json({
-        error: "Biometric verification was not confirmed",
-        attemptsRemaining: Math.max(0, MAX_BIOMETRIC_ATTEMPTS - failure.attempts),
+        error:
+          method === "face"
+            ? "Face did not match enrolled record"
+            : "Biometric verification was not confirmed",
+        attemptsRemaining: Math.max(
+          0,
+          MAX_BIOMETRIC_ATTEMPTS - failure.attempts,
+        ),
         locked: failure.locked,
       });
     }
@@ -379,14 +560,34 @@ async function verifyBiometric(req, res) {
     res.json({
       success: true,
       token: votingSession.token,
+      tokenType: "Bearer",
+      role: "voter",
       constituencyId: voter.constituency_id,
       fullName: voter.full_name,
       authMethod: method,
+      hasVoted: Boolean(voter.has_voted), // ← new
+      voter: {
+        id: voter.id,
+        vin: voter.vin,
+        fullName: voter.full_name,
+        email: voter.email,
+        constituencyId: voter.constituency_id,
+      },
+      user: {
+        id: voter.id,
+        vin: voter.vin,
+        fullName: voter.full_name,
+        email: voter.email,
+        role: "voter",
+        constituencyId: voter.constituency_id,
+      },
       message: "Voting authentication complete",
     });
   } catch (error) {
     console.error("Biometric verification error:", error);
-    res.status(401).json({ error: error.message || "Biometric verification failed" });
+    res
+      .status(401)
+      .json({ error: error.message || "Biometric verification failed" });
   }
 }
 
@@ -530,17 +731,20 @@ async function resetPasswordOtp(req, res) {
  */
 async function forgotPassword(req, res) {
   try {
-    const { email } = req.body;
+    const { identifier, email } = req.body;
+    const resetIdentifier = String(identifier || email || "").trim();
 
-    if (email) {
+    if (resetIdentifier) {
       const voterResult = await pool.query(
-        `SELECT id, constituency_id, vin
+        `SELECT id, constituency_id, vin, email
          FROM voters
-         WHERE email = $1 AND status = 'registered'`,
-        [String(email).toLowerCase()],
+         WHERE (LOWER(email) = LOWER($1) OR UPPER(vin) = UPPER($1))
+           AND status = 'registered'
+         LIMIT 1`,
+        [resetIdentifier],
       );
 
-      if (voterResult.rows.length > 0) {
+      if (voterResult.rows.length > 0 && voterResult.rows[0].email) {
         const voter = voterResult.rows[0];
         const resetToken = crypto.randomBytes(32).toString("hex");
         const tokenHash = sha256(resetToken);
@@ -553,13 +757,13 @@ async function forgotPassword(req, res) {
         );
 
         if (process.env.NODE_ENV !== "production") {
-          console.log(`Password reset token for ${email}: ${resetToken}`);
+          console.log(`Password reset token for ${voter.email}: ${resetToken}`);
         }
 
         const resetBaseUrl =
           process.env.RESET_PASSWORD_BASE_URL || "http://localhost:8081/voter/reset-password";
         await sendPasswordResetEmail({
-          to: String(email).toLowerCase(),
+          to: voter.email,
           resetUrl: `${resetBaseUrl}?token=${resetToken}`,
         });
       }
@@ -567,13 +771,13 @@ async function forgotPassword(req, res) {
 
     res.json({
       success: true,
-      message: "If that email exists, a reset link has been sent.",
+      message: "If that voter account has an email, reset instructions have been sent.",
     });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.json({
       success: true,
-      message: "If that email exists, a reset link has been sent.",
+      message: "If that voter account has an email, reset instructions have been sent.",
     });
   }
 }

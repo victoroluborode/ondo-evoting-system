@@ -1,15 +1,32 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
 const { ACTIVE_ELECTION_TYPE } = require("./electionLifecycle");
+const { recordAuditLog } = require("../utils/auditLog");
+const {
+  createAdminOtpSession,
+  getOtpSession,
+  recordOtpFailure,
+  markOtpVerified,
+} = require("../utils/adminOtp");
+const { sendAdminOtpEmail } = require("./email");
 
-const ELECTION_STATUSES = new Set(["draft", "open", "closed", "published"]);
+const ELECTION_STATUSES = new Set([
+  "draft",
+  "open",
+  "closed",
+  "published",
+  "archived",
+]);
 const ELECTION_TRANSITIONS = {
   draft: new Set(["open"]),
   open: new Set(["closed"]),
   closed: new Set(["published"]),
-  published: new Set([]),
+  published: new Set(["archived"]), // ← new
+  archived: new Set([]),
 };
+const FIXED_ELECTION_NAME = "Ondo State House of Representatives Election";
 
 /**
  * Builds a typed lifecycle error that can be returned as a controlled API response.
@@ -155,6 +172,48 @@ function toElection(row) {
   };
 }
 
+
+/**
+ * Returns the single House of Representatives election, creating it as a draft
+ * on first use if it doesn't exist yet. This app only ever manages one election.
+ */
+async function getOrCreateSingleElection() {
+  const activeExisting = await pool.query(
+    `SELECT * FROM elections
+     WHERE election_type = $1
+       AND status <> 'archived'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [ACTIVE_ELECTION_TYPE],
+  );
+
+  if (activeExisting.rows.length > 0) {
+    return toElection(activeExisting.rows[0]);
+  }
+
+  const created = await pool.query(
+    `INSERT INTO elections (name, election_type, status)
+     VALUES ($1, $2, 'draft')
+     RETURNING *`,
+    [
+      `${FIXED_ELECTION_NAME} ${new Date().getFullYear()}-${Date.now()}`,
+      ACTIVE_ELECTION_TYPE,
+    ],
+  );
+
+  return toElection(created.rows[0]);
+}
+
+async function getElection(req, res) {
+  try {
+    const election = await getOrCreateSingleElection();
+    res.json({ success: true, election });
+  } catch (error) {
+    console.error("Get election error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 /**
  * Applies a controlled lifecycle transition and returns the updated election.
  */
@@ -213,6 +272,7 @@ async function transitionElectionStatus(electionId, nextStatus) {
 function toOfficer(row) {
   return {
     id: row.id,
+    officerId: row.officer_code,
     fullName: row.full_name,
     email: row.email,
     role: row.role,
@@ -261,19 +321,27 @@ function toLga(row) {
 }
 
 /**
- * Authenticates a senior election admin and returns an admin-scoped JWT.
+ * Verifies admin credentials, then issues a 5-minute pending token and emails an OTP.
+ * The real admin session token is only issued after verifyOtp succeeds.
  */
 async function login(req, res) {
   try {
-    const { email, password } = req.body;
+    const { identifier, adminId, email, password } = req.body;
+    const loginIdentifier = String(identifier || adminId || email || "").trim();
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({
+        error: "Admin ID or email and password are required",
+      });
     }
 
     const result = await pool.query(
-      "SELECT id, full_name, email, password_hash, role FROM election_admins WHERE email = $1",
-      [email.toLowerCase()],
+      `SELECT id, admin_code, full_name, email, password_hash, role
+       FROM election_admins
+       WHERE LOWER(email) = LOWER($1)
+          OR UPPER(admin_code) = UPPER($1)
+       LIMIT 1`,
+      [loginIdentifier],
     );
 
     if (result.rows.length === 0) {
@@ -287,29 +355,103 @@ async function login(req, res) {
       return res.status(401).json({ error: "Invalid admin credentials" });
     }
 
-    const token = jwt.sign(
-      {
-        type: "admin",
-        adminId: admin.id,
-        role: admin.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "4h" },
-    );
+    const { otp, pendingToken } = await createAdminOtpSession(admin.id);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`Admin OTP for ${admin.admin_code}: ${otp}`);
+    }
+
+    await sendAdminOtpEmail({ to: admin.email, otp });
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: admin.id,
+      actorLabel: admin.admin_code,
+      action: "admin.login_otp_sent",
+      targetSummary: admin.full_name,
+    });
 
     res.json({
       success: true,
-      token,
-      admin: {
-        id: admin.id,
-        fullName: admin.full_name,
-        email: admin.email,
-        role: admin.role,
-      },
+      pendingToken,
+      maskedEmail: admin.email.replace(/^(.{2}).+(@.+)$/, "$1***$2"),
+      expiresInSeconds: 300,
+      message: "Enter the verification code sent to your email",
     });
   } catch (error) {
     console.error("Admin login error:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/**
+ * Verifies the emailed OTP and, on success, issues the real admin session token.
+ */
+async function verifyOtp(req, res) {
+  try {
+    const { pendingToken, otp } = req.body;
+
+    if (!pendingToken || !otp) {
+      return res.status(400).json({ error: "Pending token and OTP are required" });
+    }
+
+    const session = await getOtpSession(pendingToken);
+    const { sha256 } = require("../utils/encryption");
+    const submittedHash = sha256(`admin-otp:${session.session_token_id || ""}:${otp}`);
+
+    // Re-derive using the same inputs createAdminOtpSession used.
+    const jwt = require("jsonwebtoken");
+    const payload = jwt.verify(pendingToken, process.env.JWT_SECRET);
+    const expectedHash = sha256(`admin-otp:${payload.sessionTokenId}:${otp}`);
+
+    if (expectedHash !== session.otp_hash) {
+      const failure = await recordOtpFailure(session.id);
+      return res.status(401).json({
+        error: "Incorrect verification code",
+        attemptsRemaining: Math.max(0, 3 - failure.attempts),
+        locked: failure.locked,
+      });
+    }
+
+    await markOtpVerified(session.id);
+
+    const adminResult = await pool.query(
+      "SELECT id, admin_code, full_name, email, role FROM election_admins WHERE id = $1",
+      [session.admin_id],
+    );
+    const admin = adminResult.rows[0];
+
+    const token = jwt.sign(
+      { type: "admin", adminId: admin.id, role: admin.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "4h" },
+    );
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: admin.id,
+      actorLabel: admin.admin_code,
+      action: "admin.login",
+      targetSummary: admin.full_name,
+    });
+
+    res.json({
+      success: true,
+      token,
+      tokenType: "Bearer",
+      role: "admin",
+      user: {
+        id: admin.id,
+        loginId: admin.admin_code,
+        fullName: admin.full_name,
+        email: admin.email,
+        role: "admin",
+        permissionsRole: admin.role,
+      },
+    });
+  } catch (error) {
+    console.error("Admin OTP verification error:", error);
+    res.status(401).json({ error: error.message || "Verification failed" });
   }
 }
 
@@ -365,10 +507,22 @@ async function updateConstituency(req, res) {
       return res.status(404).json({ error: "Constituency not found" });
     }
 
-    res.json({ success: true, constituency: toConstituency(result.rows[0]) });
+    const constituency = toConstituency(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "constituency.updated",
+      targetSummary: constituency.name,
+      metadata: { constituencyId: constituency.id },
+    });
+
+    res.json({ success: true, constituency });
   } catch (error) {
     if (error.code === "23505") {
-      return res.status(409).json({ error: "Constituency name or code already exists" });
+      return res
+        .status(409)
+        .json({ error: "Constituency name or code already exists" });
     }
 
     console.error("Admin constituency update error:", error);
@@ -409,7 +563,9 @@ async function createLga(req, res) {
     const { name, constituencyId } = req.body;
 
     if (!name || !constituencyId) {
-      return res.status(400).json({ error: "LGA name and constituency are required" });
+      return res
+        .status(400)
+        .json({ error: "LGA name and constituency are required" });
     }
 
     const result = await pool.query(
@@ -419,7 +575,17 @@ async function createLga(req, res) {
       [name, constituencyId],
     );
 
-    res.status(201).json({ success: true, lga: toLga(result.rows[0]) });
+    const lga = toLga(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "lga.created",
+      targetSummary: lga.name,
+      metadata: { lgaId: lga.id, constituencyId: lga.constituencyId },
+    });
+
+    res.status(201).json({ success: true, lga });
   } catch (error) {
     if (error.code === "23503") {
       return res.status(400).json({ error: "Invalid constituency" });
@@ -473,7 +639,18 @@ async function updateLga(req, res) {
     }
 
     await client.query("COMMIT");
-    res.json({ success: true, lga: toLga(result.rows[0]) });
+
+    const lga = toLga(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "lga.updated",
+      targetSummary: lga.name,
+      metadata: { lgaId: lga.id, constituencyId: lga.constituencyId },
+    });
+
+    res.json({ success: true, lga });
   } catch (error) {
     await client.query("ROLLBACK");
 
@@ -523,6 +700,15 @@ async function deleteLga(req, res) {
     }
 
     await client.query("COMMIT");
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "lga.deleted",
+      targetSummary: `LGA #${result.rows[0].id}`,
+      metadata: { lgaId: Number(result.rows[0].id) },
+    });
+
     res.json({ success: true, deletedId: Number(result.rows[0].id) });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -680,7 +866,17 @@ async function createElection(req, res) {
       ],
     );
 
-    res.status(201).json({ success: true, election: toElection(result.rows[0]) });
+    const election = toElection(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "election.created",
+      targetSummary: election.name,
+      metadata: { electionId: election.id },
+    });
+
+    res.status(201).json({ success: true, election });
   } catch (error) {
     if (error.code === "23505") {
       return res.status(409).json({ error: "Election already exists" });
@@ -730,7 +926,8 @@ async function updateElection(req, res) {
     if (hasMetadataUpdate && current.status !== "draft") {
       await client.query("ROLLBACK");
       return res.status(409).json({
-        error: "Election metadata can only be changed while the election is in draft",
+        error:
+          "Election metadata can only be changed while the election is in draft",
       });
     }
 
@@ -787,7 +984,17 @@ async function updateElection(req, res) {
 
     await client.query("COMMIT");
 
-    res.json({ success: true, election: toElection(election) });
+    const responseElection = toElection(election);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "election.updated",
+      targetSummary: responseElection.name,
+      metadata: { electionId: responseElection.id },
+    });
+
+    res.json({ success: true, election: responseElection });
   } catch (error) {
     await client.query("ROLLBACK");
 
@@ -812,6 +1019,15 @@ async function updateElection(req, res) {
 async function openElection(req, res) {
   try {
     const election = await transitionElectionStatus(req.params.id, "open");
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "election.opened",
+      targetSummary: election.name,
+      metadata: { electionId: election.id },
+    });
+
     res.json({ success: true, election });
   } catch (error) {
     if (error.statusCode) {
@@ -829,6 +1045,15 @@ async function openElection(req, res) {
 async function closeElection(req, res) {
   try {
     const election = await transitionElectionStatus(req.params.id, "closed");
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "election.closed",
+      targetSummary: election.name,
+      metadata: { electionId: election.id },
+    });
+
     res.json({ success: true, election });
   } catch (error) {
     if (error.statusCode) {
@@ -846,6 +1071,15 @@ async function closeElection(req, res) {
 async function publishElection(req, res) {
   try {
     const election = await transitionElectionStatus(req.params.id, "published");
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "election.published",
+      targetSummary: election.name,
+      metadata: { electionId: election.id },
+    });
+
     res.json({ success: true, election });
   } catch (error) {
     if (error.statusCode) {
@@ -853,6 +1087,30 @@ async function publishElection(req, res) {
     }
 
     console.error("Admin election publish error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/**
+ * Archives a published election, allowing a new election cycle to begin.
+ * Archived elections remain in the database as a permanent historical record.
+ */
+async function archiveElection(req, res) {
+  try {
+    const election = await transitionElectionStatus(req.params.id, "archived");
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "election.archived",
+      targetSummary: election.name,
+      metadata: { electionId: election.id },
+    });
+    res.json({ success: true, election });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    console.error("Admin election archive error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -872,6 +1130,14 @@ async function deleteElection(req, res) {
         error: "Draft election not found or election cannot be deleted",
       });
     }
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "election.deleted",
+      targetSummary: `Election #${result.rows[0].id}`,
+      metadata: { electionId: result.rows[0].id },
+    });
 
     res.json({ success: true, deletedId: result.rows[0].id });
   } catch (error) {
@@ -902,7 +1168,9 @@ async function createParty(req, res) {
     const partyCode = normalizeCode(code);
 
     if (!name || !partyCode) {
-      return res.status(400).json({ error: "Party name and code are required" });
+      return res
+        .status(400)
+        .json({ error: "Party name and code are required" });
     }
 
     const result = await pool.query(
@@ -912,7 +1180,17 @@ async function createParty(req, res) {
       [name, partyCode, logoUrl || null],
     );
 
-    res.status(201).json({ success: true, party: toParty(result.rows[0]) });
+    const party = toParty(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "party.created",
+      targetSummary: `${party.name} (${party.code})`,
+      metadata: { partyId: party.id },
+    });
+
+    res.status(201).json({ success: true, party });
   } catch (error) {
     if (error.code === "23505") {
       return res.status(409).json({ error: "Party already exists" });
@@ -947,7 +1225,17 @@ async function updateParty(req, res) {
       return res.status(404).json({ error: "Party not found" });
     }
 
-    res.json({ success: true, party: toParty(result.rows[0]) });
+    const party = toParty(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "party.updated",
+      targetSummary: `${party.name} (${party.code})`,
+      metadata: { partyId: party.id },
+    });
+
+    res.json({ success: true, party });
   } catch (error) {
     if (error.code === "23505") {
       return res.status(409).json({ error: "Party already exists" });
@@ -991,6 +1279,14 @@ async function deleteParty(req, res) {
 
     await client.query("DELETE FROM parties WHERE id = $1", [req.params.id]);
     await client.query("COMMIT");
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "party.deleted",
+      targetSummary: partyResult.rows[0].code,
+      metadata: { partyId: partyResult.rows[0].id },
+    });
 
     res.json({ success: true, deletedId: partyResult.rows[0].id });
   } catch (error) {
@@ -1045,7 +1341,9 @@ async function createCandidate(req, res) {
     );
 
     if (partyResult.rows.length === 0) {
-      return res.status(400).json({ error: "Party does not exist or is inactive" });
+      return res
+        .status(400)
+        .json({ error: "Party does not exist or is inactive" });
     }
 
     const result = await pool.query(
@@ -1055,10 +1353,29 @@ async function createCandidate(req, res) {
       [name, partyCode, constituencyId, photoUrl || null],
     );
 
-    res.status(201).json({ success: true, candidate: toCandidate(result.rows[0]) });
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "candidate.created",
+      targetSummary: `${name} (${partyCode})`,
+      metadata: { constituencyId, candidateId: result.rows[0].id },
+    });
+
+    res
+      .status(201)
+      .json({ success: true, candidate: toCandidate(result.rows[0]) });
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json({ error: error.message });
+    }
+
+    if (
+      error.code === "23505" &&
+      error.detail?.includes("Key (constituency_id, party)=")
+    ) {
+      return res.status(409).json({
+        error: "This party already has a candidate in this constituency",
+      });
     }
 
     if (error.code === "23503") {
@@ -1087,7 +1404,9 @@ async function updateCandidate(req, res) {
       );
 
       if (partyResult.rows.length === 0) {
-        return res.status(400).json({ error: "Party does not exist or is inactive" });
+        return res
+          .status(400)
+          .json({ error: "Party does not exist or is inactive" });
       }
     }
 
@@ -1111,7 +1430,20 @@ async function updateCandidate(req, res) {
       return res.status(404).json({ error: "Candidate not found" });
     }
 
-    res.json({ success: true, candidate: toCandidate(result.rows[0]) });
+    const candidate = toCandidate(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "candidate.updated",
+      targetSummary: `${candidate.name} (${candidate.party})`,
+      metadata: {
+        candidateId: candidate.id,
+        constituencyId: candidate.constituencyId,
+      },
+    });
+
+    res.json({ success: true, candidate });
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json({ error: error.message });
@@ -1154,6 +1486,14 @@ async function deleteCandidate(req, res) {
       return res.status(404).json({ error: "Candidate not found" });
     }
 
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "candidate.deleted",
+      targetSummary: `Candidate #${req.params.candidateId}`,
+      metadata: { constituencyId: req.params.constituencyId },
+    });
+
     res.json({
       success: true,
       deletedId: result.rows[0].id,
@@ -1175,7 +1515,7 @@ async function deleteCandidate(req, res) {
 async function listOfficers(req, res) {
   try {
     const result = await pool.query(
-      `SELECT id, full_name, email, role, status, created_at
+      `SELECT id, officer_code, full_name, email, role, status, created_at
        FROM election_officers
        ORDER BY created_at DESC`,
     );
@@ -1192,7 +1532,13 @@ async function listOfficers(req, res) {
  */
 async function createOfficer(req, res) {
   try {
-    const { fullName, email, password, role = "registration_officer" } = req.body;
+    const {
+      officerId,
+      fullName,
+      email,
+      password,
+      role = "registration_officer",
+    } = req.body;
 
     if (!fullName || !email || !password) {
       return res.status(400).json({
@@ -1201,17 +1547,34 @@ async function createOfficer(req, res) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const officerCode = String(
+      officerId || `OFF-${crypto.randomBytes(4).toString("hex")}`,
+    ).toUpperCase();
+
     const result = await pool.query(
-      `INSERT INTO election_officers (full_name, email, password_hash, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, full_name, email, role, status, created_at`,
-      [fullName, String(email).toLowerCase(), passwordHash, role],
+      `INSERT INTO election_officers
+        (officer_code, full_name, email, password_hash, role)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, officer_code, full_name, email, role, status, created_at`,
+      [officerCode, fullName, String(email).toLowerCase(), passwordHash, role],
     );
 
-    res.status(201).json({ success: true, officer: toOfficer(result.rows[0]) });
+    const officer = toOfficer(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "officer.created",
+      targetSummary: officer.fullName,
+      metadata: { officerId: officer.id, officerCode: officer.officerId },
+    });
+
+    res.status(201).json({ success: true, officer });
   } catch (error) {
     if (error.code === "23505") {
-      return res.status(409).json({ error: "Officer email already exists" });
+      return res
+        .status(409)
+        .json({ error: "Officer ID or email already exists" });
     }
 
     console.error("Admin officer create error:", error);
@@ -1224,19 +1587,21 @@ async function createOfficer(req, res) {
  */
 async function updateOfficer(req, res) {
   try {
-    const { fullName, email, password, role, status } = req.body;
+    const { officerId, fullName, email, password, role, status } = req.body;
     const passwordHash = password ? await bcrypt.hash(password, 12) : null;
 
     const result = await pool.query(
       `UPDATE election_officers
-       SET full_name = COALESCE($1, full_name),
-           email = COALESCE($2, email),
-           password_hash = COALESCE($3, password_hash),
-           role = COALESCE($4, role),
-           status = COALESCE($5, status)
-       WHERE id = $6
-       RETURNING id, full_name, email, role, status, created_at`,
+       SET officer_code = COALESCE($1, officer_code),
+           full_name = COALESCE($2, full_name),
+           email = COALESCE($3, email),
+           password_hash = COALESCE($4, password_hash),
+           role = COALESCE($5, role),
+           status = COALESCE($6, status)
+       WHERE id = $7
+       RETURNING id, officer_code, full_name, email, role, status, created_at`,
       [
+        officerId ? String(officerId).toUpperCase() : null,
         fullName || null,
         email ? String(email).toLowerCase() : null,
         passwordHash,
@@ -1250,10 +1615,22 @@ async function updateOfficer(req, res) {
       return res.status(404).json({ error: "Officer not found" });
     }
 
-    res.json({ success: true, officer: toOfficer(result.rows[0]) });
+    const officer = toOfficer(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "officer.updated",
+      targetSummary: officer.fullName,
+      metadata: { officerId: officer.id, officerCode: officer.officerId },
+    });
+
+    res.json({ success: true, officer });
   } catch (error) {
     if (error.code === "23505") {
-      return res.status(409).json({ error: "Officer email already exists" });
+      return res
+        .status(409)
+        .json({ error: "Officer ID or email already exists" });
     }
 
     console.error("Admin officer update error:", error);
@@ -1270,7 +1647,7 @@ async function disableOfficer(req, res) {
       `UPDATE election_officers
        SET status = 'disabled'
        WHERE id = $1
-       RETURNING id, full_name, email, role, status, created_at`,
+       RETURNING id, officer_code, full_name, email, role, status, created_at`,
       [req.params.id],
     );
 
@@ -1278,12 +1655,226 @@ async function disableOfficer(req, res) {
       return res.status(404).json({ error: "Officer not found" });
     }
 
-    res.json({ success: true, officer: toOfficer(result.rows[0]) });
+    const officer = toOfficer(result.rows[0]);
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "officer.disabled",
+      targetSummary: officer.fullName,
+      metadata: { officerId: officer.id, officerCode: officer.officerId },
+    });
+
+    res.json({ success: true, officer });
   } catch (error) {
     console.error("Admin officer disable error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// Lists voters with optional constituency filter and search by name or VIN for admin management.
+
+async function listVoters(req, res) {
+  try {
+    const { constituencyId, search } = req.query;
+
+    const result = await pool.query(
+      `SELECT id, vin, full_name, email, phone_number, constituency_id, lga_id,
+              fingerprint_enrolled, face_enrolled, has_voted, status, created_at
+       FROM voters
+       WHERE ($1::int IS NULL OR constituency_id = $1)
+         AND ($2::text IS NULL OR full_name ILIKE '%' || $2 || '%' OR UPPER(vin) LIKE UPPER('%' || $2 || '%'))
+       ORDER BY constituency_id, full_name`,
+      [constituencyId || null, search || null],
+    );
+
+    res.json({
+      success: true,
+      voters: result.rows.map((row) => ({
+        id: row.id,
+        vin: row.vin,
+        fullName: row.full_name,
+        email: row.email,
+        phoneNumber: row.phone_number,
+        constituencyId: Number(row.constituency_id),
+        lgaId: Number(row.lga_id),
+        fingerprintEnrolled: row.fingerprint_enrolled,
+        faceEnrolled: row.face_enrolled,
+        hasVoted: row.has_voted,
+        status: row.status,
+        createdAt: row.created_at,
+      })),
+    });
+  } catch (error) {
+    console.error("Admin voters fetch error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/**
+ * Returns recent audit log entries, most recent first.
+ */
+async function listAuditLogs(req, res) {
+  try {
+    const { actorType, limit = 50 } = req.query;
+
+    const result = await pool.query(
+      `SELECT id, actor_type, actor_label, action, target_summary, metadata, created_at
+       FROM audit_logs
+       WHERE ($1::text IS NULL OR actor_type = $1)
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [actorType || null, Math.min(Number(limit) || 50, 200)],
+    );
+
+    res.json({
+      success: true,
+      logs: result.rows.map((row) => ({
+        id: row.id,
+        actorType: row.actor_type,
+        actorLabel: row.actor_label,
+        action: row.action,
+        targetSummary: row.target_summary,
+        metadata: row.metadata,
+        createdAt: row.created_at,
+      })),
+    });
+  } catch (error) {
+    console.error("Admin audit logs fetch error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// adminService.js
+
+async function listPendingVoters(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT id, vin, full_name, email, phone_number, constituency_id, lga_id,
+              fingerprint_enrolled, face_enrolled, created_at
+       FROM voters
+       WHERE status = 'pending_review'
+       ORDER BY created_at ASC`,
+    );
+
+    res.json({
+      success: true,
+      voters: result.rows.map((row) => ({
+        id: row.id,
+        vin: row.vin,
+        fullName: row.full_name,
+        email: row.email,
+        phoneNumber: row.phone_number,
+        constituencyId: Number(row.constituency_id),
+        lgaId: Number(row.lga_id),
+        fingerprintEnrolled: row.fingerprint_enrolled,
+        faceEnrolled: row.face_enrolled,
+        createdAt: row.created_at,
+      })),
+    });
+  } catch (error) {
+    console.error("Pending voters fetch error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+async function approveVoter(req, res) {
+  try {
+    const { constituencyId } = req.body; // needed since voters table is partitioned
+
+    const result = await pool.query(
+      `UPDATE voters SET status = 'registered'
+       WHERE id = $1 AND constituency_id = $2 AND status = 'pending_review'
+       RETURNING id, full_name, vin`,
+      [req.params.id, constituencyId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Pending voter not found" });
+    }
+
+    const voter = result.rows[0];
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "voter.approved",
+      targetSummary: `${voter.full_name} (${voter.vin})`,
+    });
+
+    res.json({ success: true, voterId: voter.id });
+  } catch (error) {
+    console.error("Voter approval error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+async function rejectVoter(req, res) {
+  try {
+    const { constituencyId, reason } = req.body;
+
+    const result = await pool.query(
+      `UPDATE voters SET status = 'suspended'
+       WHERE id = $1 AND constituency_id = $2 AND status = 'pending_review'
+       RETURNING id, full_name, vin`,
+      [req.params.id, constituencyId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Pending voter not found" });
+    }
+
+    const voter = result.rows[0];
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "voter.rejected",
+      targetSummary: `${voter.full_name} (${voter.vin})`,
+      metadata: { reason: reason || null },
+    });
+
+    res.json({ success: true, voterId: voter.id });
+  } catch (error) {
+    console.error("Voter rejection error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// adminService.js — new function, mirrors approveVoter's shape
+async function reinstateVoter(req, res) {
+  try {
+    const { constituencyId } = req.body;
+
+    const result = await pool.query(
+      `UPDATE voters SET status = 'registered'
+       WHERE id = $1 AND constituency_id = $2 AND status = 'suspended'
+       RETURNING id, full_name, vin`,
+      [req.params.id, constituencyId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Suspended voter not found" });
+    }
+
+    const voter = result.rows[0];
+
+    recordAuditLog({
+      actorType: "admin",
+      actorId: req.user.adminId,
+      action: "voter.reinstated",
+      targetSummary: `${voter.full_name} (${voter.vin})`,
+    });
+
+    res.json({ success: true, voterId: voter.id });
+  } catch (error) {
+    console.error("Voter reinstatement error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+
+
 
 module.exports = {
   createCandidate,
@@ -1308,10 +1899,19 @@ module.exports = {
   closeElection,
   openElection,
   publishElection,
+  archiveElection,
   updateCandidate,
   updateConstituency,
   updateElection,
   updateLga,
   updateOfficer,
   updateParty,
+  listVoters,
+  listAuditLogs,
+  getElection,
+  verifyOtp,
+  listPendingVoters,
+  approveVoter,
+  rejectVoter,
+  reinstateVoter,
 };

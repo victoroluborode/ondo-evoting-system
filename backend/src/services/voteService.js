@@ -7,6 +7,7 @@ const {
   getElectionForOfflineSync,
   getOpenElection,
 } = require("./electionLifecycle");
+const { recordAuditLog } = require("../utils/auditLog");
 
 /**
  * Signs an offline voting token tied to one voter, one constituency, one election, and one device.
@@ -87,6 +88,7 @@ async function recordVote(
     tokenId,
     candidateId,
     deviceId,
+    electionId,
     offlineVoteId = null,
     clientCastAt = null,
     syncSource = "online",
@@ -111,24 +113,43 @@ async function recordVote(
     }
   }
 
-  // Lock the voter row so two vote submissions cannot pass the has_voted check together.
   const voterCheck = await client.query(
-    `SELECT has_voted, status
+    `SELECT status
      FROM voters
      WHERE id = $1 AND constituency_id = $2
      FOR UPDATE`,
     [voterId, constituencyId],
   );
 
-  if (voterCheck.rows.length === 0 || voterCheck.rows[0].status !== "registered") {
-    return { accepted: false, statusCode: 403, error: "Voter account is not active" };
+  if (
+    voterCheck.rows.length === 0 ||
+    voterCheck.rows[0].status !== "registered"
+  ) {
+    return {
+      accepted: false,
+      statusCode: 403,
+      error: "Voter account is not active",
+    };
   }
 
-  if (voterCheck.rows[0].has_voted) {
-    return { accepted: false, statusCode: 403, error: "You have already voted" };
+  const existingVote = await client.query(
+    `SELECT 1
+     FROM votes
+     WHERE voter_id = $1
+       AND constituency_id = $2
+       AND election_id = $3
+     LIMIT 1`,
+    [voterId, constituencyId, electionId],
+  );
+
+  if (existingVote.rows.length > 0) {
+    return {
+      accepted: false,
+      statusCode: 403,
+      error: "You have already voted in this election",
+    };
   }
 
-  // Constituency isolation: voters can only select candidates from their own constituency.
   const candidateCheck = await client.query(
     "SELECT id FROM candidates WHERE id = $1 AND constituency_id = $2",
     [candidateId, constituencyId],
@@ -138,20 +159,24 @@ async function recordVote(
     return {
       accepted: false,
       statusCode: 403,
-      error: "Invalid candidate: Candidate does not belong to your constituency",
+      error:
+        "Invalid candidate: Candidate does not belong to your constituency",
     };
   }
 
   const timestamp = new Date().toISOString();
+
   const votePayload = {
     voterId,
     candidateId,
     constituencyId,
+    electionId,
     timestamp,
     deviceId: deviceId || null,
     offlineVoteId,
     syncSource,
   };
+
   const encryptedPayload = encryptJson(votePayload);
   const integrityHash = hashVotePayload(votePayload);
   const receiptCode = createReceiptCode(
@@ -161,17 +186,17 @@ async function recordVote(
     timestamp,
   );
 
-  // Store only the encrypted vote payload plus integrity/receipt metadata.
   await client.query(
     `INSERT INTO votes
-      (voter_id, candidate_id, constituency_id, encrypted_payload,
+      (voter_id, candidate_id, constituency_id, election_id, encrypted_payload,
        integrity_hash, receipt_code, biometric_method, device_id, token_id,
        offline_vote_id, sync_source, client_cast_at, timestamp)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
     [
       voterId,
       candidateId,
       constituencyId,
+      electionId,
       encryptedPayload,
       integrityHash,
       receiptCode,
@@ -185,13 +210,6 @@ async function recordVote(
     ],
   );
 
-  // Mark the voter as used so the same account cannot vote again.
-  await client.query(
-    "UPDATE voters SET has_voted = TRUE WHERE id = $1 AND constituency_id = $2",
-    [voterId, constituencyId],
-  );
-
-  // Immediately invalidate the JWT/offline session after a successful vote.
   await client.query(
     `UPDATE voter_auth_sessions
      SET voting_token_invalidated_at = NOW()
@@ -199,7 +217,6 @@ async function recordVote(
     [tokenId, voterId, constituencyId],
   );
 
-  // Increment the public aggregate result without exposing the encrypted ballot content.
   await client.query(
     `INSERT INTO results (constituency_id, candidate_id, vote_count)
      VALUES ($1, $2, 1)
@@ -215,6 +232,38 @@ async function recordVote(
     integrityHash,
   };
 }
+
+
+// voteService.js — new function
+async function verifyReceipt(req, res) {
+  try {
+    const { receiptCode } = req.params;
+
+    const result = await pool.query(
+      `SELECT timestamp, constituency_id FROM votes WHERE receipt_code = $1 LIMIT 1`,
+      [receiptCode],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        found: false,
+        message: "No vote was found matching this receipt code.",
+      });
+    }
+
+    res.json({
+      success: true,
+      found: true,
+      castAt: result.rows[0].timestamp,
+      message: "This receipt matches a vote on record.",
+    });
+  } catch (error) {
+    console.error("Receipt verification error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 
 /**
  * Issues the ballot and signed offline token needed for local queued voting.
@@ -306,6 +355,7 @@ async function castVote(req, res) {
       authMethod,
       tokenId,
       deviceId,
+      electionId: election.id,
     });
 
     if (!recordedVote.accepted) {
@@ -314,6 +364,14 @@ async function castVote(req, res) {
     }
 
     await client.query("COMMIT");
+
+    recordAuditLog({
+      actorType: "voter",
+      actorId: voterId,
+      action: "vote.cast",
+      targetSummary: `Receipt ${recordedVote.receiptCode.slice(0, 12)}…`,
+      metadata: { constituencyId },
+    });
 
     res.json({
       success: true,
@@ -453,4 +511,5 @@ module.exports = {
   getConstituencyResults,
   getOfflineVotingPackage,
   syncOfflineVotes,
+  verifyReceipt,
 };

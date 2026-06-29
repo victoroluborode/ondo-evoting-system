@@ -86,8 +86,10 @@ async function getVoterForPartialSession(sessionToken) {
     `SELECT s.id AS auth_session_id,
             s.expires_at,
             s.biometric_verified_at,
-            s.biometric_attempt_count,
-            s.biometric_locked_at,
+            s.fingerprint_attempt_count,
+            s.fingerprint_locked_at,
+            s.face_attempt_count,
+            s.face_locked_at,
             v.id,
             v.vin,
             v.full_name,
@@ -121,11 +123,7 @@ async function getVoterForPartialSession(sessionToken) {
     throw new Error("Session has already been used");
   }
 
-  if (voter.biometric_locked_at) {
-    throw new Error("Biometric verification is locked for this session");
-  }
-
-  if (voter.status !== "registered" || voter.has_voted) {
+  if (voter.status !== "registered") {
     throw new Error("Voter is not eligible to continue");
   }
 
@@ -133,26 +131,30 @@ async function getVoterForPartialSession(sessionToken) {
 }
 
 /**
- * Records a failed biometric attempt and locks the partial session after too many failures.
+ * Records a failed biometric attempt for a specific method and locks that
+ * method's path after too many failures — without affecting the other method.
  */
-async function recordBiometricFailure(voter) {
+async function recordBiometricFailure(voter, method) {
+  const countColumn = method === "fingerprint" ? "fingerprint_attempt_count" : "face_attempt_count";
+  const lockColumn = method === "fingerprint" ? "fingerprint_locked_at" : "face_locked_at";
+
   const result = await pool.query(
     `UPDATE voter_auth_sessions
-     SET biometric_attempt_count = biometric_attempt_count + 1,
+     SET ${countColumn} = ${countColumn} + 1,
          last_biometric_attempt_at = NOW(),
-         biometric_locked_at = CASE
-           WHEN biometric_attempt_count + 1 >= $1 THEN NOW()
-           ELSE biometric_locked_at
+         ${lockColumn} = CASE
+           WHEN ${countColumn} + 1 >= $1 THEN NOW()
+           ELSE ${lockColumn}
          END
      WHERE id = $2
-     RETURNING biometric_attempt_count, biometric_locked_at`,
+     RETURNING ${countColumn}, ${lockColumn}`,
     [MAX_BIOMETRIC_ATTEMPTS, voter.auth_session_id],
   );
 
   const attempt = result.rows[0];
   return {
-    attempts: Number(attempt.biometric_attempt_count),
-    locked: Boolean(attempt.biometric_locked_at),
+    attempts: Number(attempt[countColumn]),
+    locked: Boolean(attempt[lockColumn]),
   };
 }
 

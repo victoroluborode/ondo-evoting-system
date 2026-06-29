@@ -25,13 +25,13 @@ router.post("/officers/login", officerLogin);
  * POST /api/auth/validate-vin
  * Validates a VIN against the mock INEC voter register before registration.
  */
-router.post("/validate-vin", authenticateOfficer, validateVin);
+router.post("/validate-vin", validateVin);
 
 /**
  * POST /api/auth/register-voter
  * Registers a voter account and encrypted biometric enrollment values.
  */
-router.post("/register-voter", authenticateOfficer, registerVoter);
+router.post("/register-voter", registerVoter);
 
 /**
  * POST /api/auth/login

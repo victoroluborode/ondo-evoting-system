@@ -41,6 +41,11 @@ async function run() {
       "utf8",
     );
     await pool.query(migration);
+    const staffLoginMigration = fs.readFileSync(
+      path.join(__dirname, "../db/migrations/002_staff_login_codes.sql"),
+      "utf8",
+    );
+    await pool.query(staffLoginMigration);
 
     const health = await request(baseUrl, "/health");
     assert.equal(health.status, "ok");
@@ -51,11 +56,13 @@ async function run() {
     const adminLogin = await request(baseUrl, "/api/admin/login", {
       method: "POST",
       body: {
-        email: "admin@inec.ondo.gov.ng",
+        identifier: "ADM-ONDO-001",
         password: "AdminPassword123!",
       },
     });
     assert.ok(adminLogin.token);
+    assert.equal(adminLogin.role, "admin");
+    assert.equal(adminLogin.user.loginId, "ADM-ONDO-001");
 
     const dashboard = await request(baseUrl, "/api/admin/dashboard", {
       token: adminLogin.token,
@@ -187,12 +194,14 @@ async function run() {
       method: "POST",
       token: adminLogin.token,
       body: {
+        officerId: `OFF-${adminSuffix}`,
         fullName: `Integration Officer ${adminSuffix}`,
         email: `officer.${adminSuffix}@example.com`,
         password: "Password123!",
       },
     });
     assert.equal(officer.officer.status, "active");
+    assert.equal(officer.officer.officerId, `OFF-${adminSuffix}`);
 
     const disabledOfficer = await request(
       baseUrl,
@@ -209,7 +218,7 @@ async function run() {
       await request(baseUrl, "/api/auth/officers/login", {
         method: "POST",
         body: {
-          email: officer.officer.email,
+          identifier: officer.officer.officerId,
           password: "Password123!",
         },
       });
@@ -264,11 +273,13 @@ async function run() {
     const officerLogin = await request(baseUrl, "/api/auth/officers/login", {
       method: "POST",
       body: {
-        email: "officer@inec.ondo.gov.ng",
+        identifier: "OFF-1002",
         password: "Password123!",
       },
     });
     assert.ok(officerLogin.token);
+    assert.equal(officerLogin.role, "officer");
+    assert.equal(officerLogin.user.loginId, "OFF-1002");
 
     await pool.query(
       `INSERT INTO inec_voter_register (vin, full_name, lga_id, constituency_id, status)
@@ -330,6 +341,8 @@ async function run() {
       },
     });
     assert.ok(partial.sessionToken);
+    assert.equal(partial.role, "voter");
+    assert.equal(partial.user.vin, registration.voter.vin);
     assert.equal(partial.biometricEnrollment.fingerprint, true);
     assert.equal(partial.biometricEnrollment.face, true);
 
@@ -364,6 +377,8 @@ async function run() {
       },
     });
     assert.ok(finalAuth.token);
+    assert.equal(finalAuth.role, "voter");
+    assert.equal(finalAuth.user.vin, registration.voter.vin);
 
     const ballot = await request(baseUrl, `/api/ballots/${finalAuth.constituencyId}`, {
       token: finalAuth.token,
@@ -484,7 +499,7 @@ async function run() {
 
     await request(baseUrl, "/api/auth/forgot-password", {
       method: "POST",
-      body: { email: voterEmail },
+      body: { identifier: registration.voter.vin },
     });
 
     const otpRequest = await request(baseUrl, "/api/auth/request-password-otp", {

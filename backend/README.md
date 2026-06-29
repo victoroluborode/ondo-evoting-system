@@ -42,6 +42,7 @@ Main files:
 - `db/schema.sql`
 - `db/seed.sql`
 - `db/migrations/001_security_upgrade.sql`
+- `db/migrations/002_staff_login_codes.sql`
 
 The schema includes partitioned voters, candidates, and votes by constituency.
 
@@ -50,6 +51,7 @@ The schema includes partitioned voters, candidates, and votes by constituency.
 Officer:
 
 ```text
+Officer ID: OFF-1002
 officer@inec.ondo.gov.ng
 Password123!
 ```
@@ -57,6 +59,7 @@ Password123!
 Admin:
 
 ```text
+Admin ID: ADM-ONDO-001
 admin@inec.ondo.gov.ng
 AdminPassword123!
 ```
