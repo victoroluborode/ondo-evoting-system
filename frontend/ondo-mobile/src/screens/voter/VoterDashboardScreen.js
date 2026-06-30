@@ -1,4 +1,3 @@
-// VoterDashboardScreen.js — rebuilt with more substance, same simplicity
 import React, { useContext, useState, useCallback } from "react";
 import {
   View,
@@ -22,20 +21,28 @@ function useCountdown(targetIso) {
 
   React.useEffect(() => {
     if (!targetIso) return;
+
     const tick = () => {
       const diff = new Date(targetIso).getTime() - Date.now();
+
       if (diff <= 0) {
         setLabel("Closing soon");
         return;
       }
+
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
+
       setLabel(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`,
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(
+          s,
+        ).padStart(2, "0")}`,
       );
     };
+
     tick();
+
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [targetIso]);
@@ -49,13 +56,17 @@ export default function VoterDashboardScreen({ navigation }) {
   const { getConstituencyName } = useConstituencyLookup();
   const [electionStatus, setElectionStatus] = useState(null);
   const { execute, loading } = useNetworkRequest();
+
   const countdown = useCountdown(electionStatus?.election?.endsAt);
 
   const loadElectionStatus = useCallback(async () => {
     const result = await execute(async () =>
       apiRequest("/ballots/election-status"),
     );
-    if (result.success) setElectionStatus(result.data);
+
+    if (result.success) {
+      setElectionStatus(result.data);
+    }
   }, []);
 
   useFocusEffect(
@@ -84,22 +95,41 @@ export default function VoterDashboardScreen({ navigation }) {
             </Text>
             <Text style={typography.subtitle}>Welcome to your dashboard.</Text>
           </View>
+
           <View style={styles.verifiedBadge}>
             <Ionicons
               name="shield-checkmark"
               size={14}
               color={colors.primary}
             />
+            <Text style={styles.verifiedText}>Verified</Text>
           </View>
         </View>
 
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>VIN</Text>
+            <View style={styles.infoLabelRow}>
+              <Ionicons
+                name="card-outline"
+                size={16}
+                color={colors.textMuted}
+              />
+              <Text style={styles.infoLabel}>VIN</Text>
+            </View>
+
             <Text style={styles.infoValue}>{userData.vin}</Text>
           </View>
+
           <View style={[styles.infoRow, styles.infoRowLast]}>
-            <Text style={styles.infoLabel}>Constituency</Text>
+            <View style={styles.infoLabelRow}>
+              <Ionicons
+                name="location-outline"
+                size={16}
+                color={colors.textMuted}
+              />
+              <Text style={styles.infoLabel}>Constituency</Text>
+            </View>
+
             <Text style={styles.infoValue}>{constituencyName}</Text>
           </View>
         </View>
@@ -110,13 +140,25 @@ export default function VoterDashboardScreen({ navigation }) {
 
         {electionStatus && electionStatus.isOpen && (
           <View style={styles.voteCard}>
-            <View style={styles.statusTag}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Election Live</Text>
+            <View style={styles.voteCardHeader}>
+              <View style={styles.voteIconCircle}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+
+              <View style={styles.statusTag}>
+                <View style={styles.statusDot} />
+                <Text style={styles.statusText}>Election Live</Text>
+              </View>
             </View>
+
             <Text style={styles.voteCardTitle}>
               {electionStatus.election?.name || "Cast Your Vote"}
             </Text>
+
             <Text style={styles.voteCardSubtitle}>
               Your vote is encrypted and anonymous. It only takes a minute.
             </Text>
@@ -143,7 +185,9 @@ export default function VoterDashboardScreen({ navigation }) {
                 Not Open
               </Text>
             </View>
+
             <Text style={styles.voteCardTitle}>Voting Isn't Open Yet</Text>
+
             <Text style={styles.closedSubtitle}>
               There's no election currently open for voting. Check back once
               your election begins.
@@ -151,7 +195,8 @@ export default function VoterDashboardScreen({ navigation }) {
           </View>
         )}
 
-        <Text style={styles.sectionLabel}>How Voting Works</Text>
+        <Text style={styles.sectionLabel}>Voting Process</Text>
+
         <View style={styles.guideCard}>
           {[
             {
@@ -194,6 +239,7 @@ export default function VoterDashboardScreen({ navigation }) {
             size={18}
             color={colors.primary}
           />
+
           <Text style={styles.helpText}>
             Your vote is encrypted before it is recorded. Your receipt only
             proves a ballot was submitted — it does not reveal your candidate.
@@ -205,6 +251,7 @@ export default function VoterDashboardScreen({ navigation }) {
         style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}
       >
         <TouchableOpacity onPress={logout} style={styles.logoutRow}>
+          <Ionicons name="log-out-outline" size={18} color={colors.textMuted} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
@@ -214,24 +261,42 @@ export default function VoterDashboardScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+
   headerRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
-  title: { marginBottom: 2 },
+
+  title: {
+    marginBottom: 2,
+  },
+
   verifiedBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: colors.primaryDim,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     marginTop: 4,
   },
+
+  verifiedText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+
   infoCard: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -240,6 +305,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     overflow: "hidden",
   },
+
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -247,16 +313,39 @@ const styles = StyleSheet.create({
     padding: spacing.base,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
+    gap: spacing.sm,
   },
-  infoRowLast: { borderBottomWidth: 0 },
-  infoLabel: { fontSize: 13, color: colors.textMuted },
-  infoValue: { fontSize: 13, fontWeight: "800", color: colors.text },
+
+  infoRowLast: {
+    borderBottomWidth: 0,
+  },
+
+  infoLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  infoLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+
+  infoValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.text,
+  },
+
   loadingText: {
     fontSize: 14,
     color: colors.textMuted,
     textAlign: "center",
     marginTop: spacing.md,
   },
+
   voteCard: {
     backgroundColor: colors.primaryDim,
     borderWidth: 1.5,
@@ -265,6 +354,25 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.lg,
   },
+
+  voteCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+
+  voteIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   closedCard: {
     backgroundColor: colors.surface,
     borderWidth: 1.5,
@@ -273,6 +381,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.lg,
   },
+
   statusTag: {
     flexDirection: "row",
     alignItems: "center",
@@ -282,20 +391,26 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    marginBottom: spacing.md,
   },
+
   statusTagClosed: {
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: spacing.md,
   },
+
   statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.primary,
   },
-  statusDotClosed: { backgroundColor: colors.textMuted },
+
+  statusDotClosed: {
+    backgroundColor: colors.textMuted,
+  },
+
   statusText: {
     fontSize: 11,
     fontWeight: "800",
@@ -303,20 +418,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
-  statusTextClosed: { color: colors.textMuted },
+
+  statusTextClosed: {
+    color: colors.textMuted,
+  },
+
   voteCardTitle: {
     fontSize: 18,
     fontWeight: "900",
     color: colors.text,
     marginBottom: spacing.xs,
   },
+
   voteCardSubtitle: {
     fontSize: 13,
     lineHeight: 19,
     color: colors.primaryMid,
     marginBottom: spacing.md,
   },
-  closedSubtitle: { fontSize: 13, lineHeight: 19, color: colors.textMuted },
+
+  closedSubtitle: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textMuted,
+  },
+
   countdownBox: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
@@ -324,6 +450,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: spacing.md,
   },
+
   countdownLabel: {
     fontSize: 10,
     fontWeight: "800",
@@ -332,12 +459,14 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 4,
   },
+
   countdownValue: {
     fontSize: 24,
     fontWeight: "900",
     color: colors.white,
     fontVariant: ["tabular-nums"],
   },
+
   sectionLabel: {
     fontSize: 11,
     fontWeight: "900",
@@ -347,6 +476,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.sm,
   },
+
   guideCard: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -355,6 +485,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     overflow: "hidden",
   },
+
   guideRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -362,8 +493,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
-  guideRowLast: { borderBottomWidth: 0 },
-  guideText: { fontSize: 13, color: colors.textMid, flex: 1, lineHeight: 19 },
+
+  guideRowLast: {
+    borderBottomWidth: 0,
+  },
+
+  guideText: {
+    fontSize: 13,
+    color: colors.textMid,
+    flex: 1,
+    lineHeight: 19,
+  },
+
   helpRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -375,7 +516,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     marginBottom: spacing.md,
   },
-  helpText: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.text },
+
+  helpText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+    lineHeight: 19,
+  },
+
   footer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
@@ -383,6 +532,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: colors.borderLight,
   },
-  logoutRow: { alignItems: "center", paddingVertical: spacing.sm },
-  logoutText: { fontSize: 14, fontWeight: "700", color: colors.textMuted },
+
+  logoutRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: spacing.sm,
+  },
+
+  logoutText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textMuted,
+  },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Animated, StatusBar } from "react-native";
+import { View, Text, StyleSheet, Animated, StatusBar, Image } from "react-native";
 import { colors, spacing } from "../../theme";
 
 export default function SplashScreen({ navigation }) {
@@ -19,7 +19,7 @@ export default function SplashScreen({ navigation }) {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setTimeout(() => navigation.replace("RoleSelection"), 1500);
+      setTimeout(() => navigation.replace("VoterLogin"), 2000);
     });
   }, []);
 
@@ -31,8 +31,11 @@ export default function SplashScreen({ navigation }) {
         style={{ opacity, transform: [{ translateY }], alignItems: "center" }}
       >
         <View style={styles.mark}>
-          <View style={styles.markInnerLine} />
-          <View style={[styles.markInnerLine, styles.markInnerLineShort]} />
+          <Image
+            source={require("../../assets/nigeria-coat-of-arms.png")}
+            style={styles.coatOfArms}
+            resizeMode="contain"
+          />
         </View>
         <Text style={styles.appName}>ONDO e-VOTE</Text>
         <Text style={styles.tagline}>Bimodal Multi-Constituency Platform</Text>
@@ -66,15 +69,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.ml,
     gap: 6,
   },
-  markInnerLine: {
-    width: 26,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.white,
-  },
-  markInnerLineShort: {
-    width: 16,
-  },
+  coatOfArms: {
+  width: 46,
+  height: 46,
+},
   appName: {
     fontSize: 26,
     fontWeight: "900",

@@ -9,6 +9,7 @@ import { apiRequest } from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import { saveOfflinePackage } from "../../services/offlineVoteStore";
 import { colors, spacing, typography, radius } from "../../theme";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function FaceVerificationScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -123,7 +124,7 @@ export default function FaceVerificationScreen({ navigation }) {
           ]}
         >
           <View style={[styles.iconCircle, styles.iconCircleError]}>
-            <Text style={styles.iconError}>✕</Text>
+            <Ionicons name="close-circle" size={34} color={colors.error} />
           </View>
 
           <Text style={[typography.h2, styles.centeredTitle]}>
@@ -156,14 +157,11 @@ export default function FaceVerificationScreen({ navigation }) {
           {status === "verifying" ? (
             <ActivityIndicator size="large" color={colors.primary} />
           ) : (
-            <Text
-              style={[
-                styles.cameraIcon,
-                status === "failed" && styles.cameraIconError,
-              ]}
-            >
-              {status === "failed" ? "✕" : "◎"}
-            </Text>
+            <Ionicons
+              name={status === "failed" ? "close-circle" : "scan-outline"}
+              size={status === "failed" ? 38 : 46}
+              color={status === "failed" ? colors.error : colors.primary}
+            />
           )}
         </View>
 

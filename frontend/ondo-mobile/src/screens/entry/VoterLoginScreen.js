@@ -7,6 +7,7 @@ import {
   ScrollView,
   Platform,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../../context/AuthContext";
@@ -66,12 +67,16 @@ export default function VoterLoginScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.brandBlock}>
-            {/* <View style={styles.logoMark}>
-              <View style={styles.logoLine} />
-              <View style={[styles.logoLine, styles.logoLineShort]} />
-            </View> */}
-            {/* <Text style={styles.brandName}>ONDO e-VOTE</Text>
-            <Text style={styles.brandTagline}>Federal Republic of Nigeria</Text> */}
+            <View style={styles.coatMark}>
+              <Image
+                source={require("../../assets/nigeria-coat-of-arms.png")}
+                style={styles.coatOfArms}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text style={styles.brandName}>ONDO e-VOTE</Text>
+            <Text style={styles.brandTagline}>Federal Republic of Nigeria</Text>
           </View>
           <Text style={[typography.h1, styles.title]}>Welcome back</Text>
           <Text style={[typography.subtitle, styles.subtitle]}>
@@ -238,5 +243,21 @@ const styles = StyleSheet.create({
   registerTextBold: {
     fontWeight: "800",
     color: colors.primary,
+  },
+  coatMark: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+
+  coatOfArms: {
+    width: 58,
+    height: 58,
   },
 });

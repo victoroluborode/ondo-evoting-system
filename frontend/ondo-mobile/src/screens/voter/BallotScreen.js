@@ -14,6 +14,7 @@ import NetworkErrorState from "../../components/NetworkErrorState";
 import { useNetworkRequest } from "../../hooks/useNetworkRequest";
 import { apiRequest } from "../../services/api";
 import { colors, spacing, typography, radius } from "../../theme";
+import { Ionicons } from "@expo/vector-icons";
 
 // Deterministic color per party code so the same party always reads the same
 // way across the app, not randomly assigned per render.
@@ -144,7 +145,15 @@ export default function BallotScreen({ navigation }) {
                   </View>
                   <View
                     style={[styles.radio, isSelected && styles.radioActive]}
-                  />
+                  >
+                    {isSelected && (
+                      <Ionicons
+                        name="checkmark"
+                        size={15}
+                        color={colors.white}
+                      />
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -238,12 +247,14 @@ const styles = StyleSheet.create({
   candidateInfo: { flex: 1 },
   candName: { fontSize: 16, fontWeight: "800", color: colors.text },
   radio: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
+  width: 24,
+  height: 24,
+  borderRadius: 12,
+  borderWidth: 2,
+  borderColor: colors.border,
+  alignItems: "center",
+  justifyContent: "center",
+},
   radioActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   footer: {
     position: "absolute",

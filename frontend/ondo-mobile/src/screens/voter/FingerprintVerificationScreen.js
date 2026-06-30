@@ -9,6 +9,7 @@ import { apiRequest } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import { saveOfflinePackage } from '../../services/offlineVoteStore';
 import { colors, spacing, typography, radius } from '../../theme';
+import { Ionicons } from "@expo/vector-icons";
 
 export default function FingerprintVerificationScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -126,20 +127,28 @@ export default function FingerprintVerificationScreen({ navigation }) {
   if (status === 'unavailable') {
     return (
       <View style={styles.container}>
-        <View style={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
+        <View
+          style={[
+            styles.content,
+            { paddingBottom: insets.bottom + spacing.xl },
+          ]}
+        >
           <View style={[styles.iconCircle, styles.iconCircleError]}>
-            <Text style={styles.iconError}>!</Text>
+            <Ionicons name="alert-circle" size={34} color={colors.error} />
           </View>
 
-          <Text style={[typography.h2, styles.centeredTitle]}>Fingerprint Not Available</Text>
+          <Text style={[typography.h2, styles.centeredTitle]}>
+            Fingerprint Not Available
+          </Text>
 
           <Text style={[typography.subtitle, styles.centeredSubtitle]}>
-            This device doesn't have a fingerprint set up. You can use facial recognition instead.
+            This device doesn't have a fingerprint set up. You can use facial
+            recognition instead.
           </Text>
 
           <CustomButton
             title="Use Facial Recognition"
-            onPress={() => navigation.replace('FaceVerification')}
+            onPress={() => navigation.replace("FaceVerification")}
           />
         </View>
       </View>
@@ -149,20 +158,30 @@ export default function FingerprintVerificationScreen({ navigation }) {
   if (status === 'locked') {
     return (
       <View style={styles.container}>
-        <View style={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
+        <View
+          style={[
+            styles.content,
+            { paddingBottom: insets.bottom + spacing.xl },
+          ]}
+        >
           <View style={[styles.iconCircle, styles.iconCircleError]}>
-            <Text style={styles.iconError}>✕</Text>
+            <Ionicons name="close-circle" size={34} color={colors.error} />
           </View>
 
-          <Text style={[typography.h2, styles.centeredTitle]}>Fingerprint Locked</Text>
+          <Text style={[typography.h2, styles.centeredTitle]}>
+            Fingerprint Locked
+          </Text>
 
           <Text style={[typography.subtitle, styles.centeredSubtitle]}>
-            Fingerprint verification has been locked for this session after too many unsuccessful attempts. This protects against repeated, unauthorized attempts. You can use facial recognition to continue, or sign in again to reset.
+            Fingerprint verification has been locked for this session after too
+            many unsuccessful attempts. This protects against repeated,
+            unauthorized attempts. You can use facial recognition to continue,
+            or sign in again to reset.
           </Text>
 
           <CustomButton
             title="Try Facial Recognition Instead"
-            onPress={() => navigation.replace('FaceVerification')}
+            onPress={() => navigation.replace("FaceVerification")}
           />
 
           <CustomButton
@@ -178,35 +197,51 @@ export default function FingerprintVerificationScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}>
+      <View
+        style={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+      >
         <View style={styles.scanRing}>
-          <View style={[styles.scanInner, status === 'failed' && styles.scanInnerError]}>
-            <Text style={[styles.mainIcon, status === 'failed' && styles.mainIconError]}>
-              {status === 'failed' ? '✕' : '⌾'}
-            </Text>
+          <View
+            style={[
+              styles.scanInner,
+              status === "failed" && styles.scanInnerError,
+            ]}
+          >
+            <Ionicons
+              name={status === "failed" ? "close-circle" : "finger-print"}
+              size={status === "failed" ? 36 : 42}
+              color={status === "failed" ? colors.error : colors.primary}
+            />
           </View>
         </View>
 
-        {(status === 'checking' || status === 'scanning') && (
+        {(status === "checking" || status === "scanning") && (
           <>
-            <Text style={[typography.h2, styles.centeredTitle]}>Verify Your Fingerprint</Text>
+            <Text style={[typography.h2, styles.centeredTitle]}>
+              Verify Your Fingerprint
+            </Text>
 
             <Text style={[typography.subtitle, styles.centeredSubtitle]}>
-              Follow the prompt on your screen and use your enrolled fingerprint.
+              Follow the prompt on your screen and use your enrolled
+              fingerprint.
             </Text>
 
             <View style={styles.loaderZone}>
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loaderText}>
-                {status === 'checking' ? 'Checking device…' : 'Waiting for fingerprint…'}
+                {status === "checking"
+                  ? "Checking device…"
+                  : "Waiting for fingerprint…"}
               </Text>
             </View>
           </>
         )}
 
-        {status === 'failed' && (
+        {status === "failed" && (
           <>
-            <Text style={[typography.h2, styles.centeredTitle]}>Scan Unsuccessful</Text>
+            <Text style={[typography.h2, styles.centeredTitle]}>
+              Scan Unsuccessful
+            </Text>
 
             <Text style={[typography.subtitle, styles.centeredSubtitle]}>
               We couldn't read your fingerprint clearly.
@@ -217,17 +252,23 @@ export default function FingerprintVerificationScreen({ navigation }) {
 
               <View style={styles.helpItem}>
                 <Text style={styles.helpBullet}>•</Text>
-                <Text style={styles.helpText}>Make sure your finger is clean and dry</Text>
+                <Text style={styles.helpText}>
+                  Make sure your finger is clean and dry
+                </Text>
               </View>
 
               <View style={styles.helpItem}>
                 <Text style={styles.helpBullet}>•</Text>
-                <Text style={styles.helpText}>Cover the entire sensor with your fingertip</Text>
+                <Text style={styles.helpText}>
+                  Cover the entire sensor with your fingertip
+                </Text>
               </View>
 
               <View style={styles.helpItem}>
                 <Text style={styles.helpBullet}>•</Text>
-                <Text style={styles.helpText}>Press gently — don't push too hard</Text>
+                <Text style={styles.helpText}>
+                  Press gently — don't push too hard
+                </Text>
               </View>
             </View>
 
@@ -235,8 +276,8 @@ export default function FingerprintVerificationScreen({ navigation }) {
               <View style={styles.attemptRow}>
                 <Text style={styles.attemptText}>
                   {attemptsRemaining > 0
-                    ? `${attemptsRemaining} attempt${attemptsRemaining === 1 ? '' : 's'} remaining`
-                    : 'This was your last attempt'}
+                    ? `${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remaining`
+                    : "This was your last attempt"}
                 </Text>
               </View>
             )}

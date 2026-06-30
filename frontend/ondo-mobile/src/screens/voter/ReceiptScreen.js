@@ -5,6 +5,7 @@ import * as Clipboard from "expo-clipboard";
 import CustomButton from "../../components/CustomButton";
 import { AuthContext } from "../../context/AuthContext";
 import { colors, spacing, typography, radius } from "../../theme";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ReceiptScreen({ route }) {
   const insets = useSafeAreaInsets();
@@ -25,7 +26,7 @@ export default function ReceiptScreen({ route }) {
         style={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
       >
         <View style={styles.iconCircle}>
-          <Text style={styles.icon}>✓</Text>
+          <Ionicons name="checkmark-circle" size={34} color={colors.primary} />
         </View>
 
         <Text style={[typography.h1, styles.title]}>
@@ -47,9 +48,16 @@ export default function ReceiptScreen({ route }) {
             style={styles.copyRow}
             activeOpacity={0.7}
           >
-            <Text style={styles.copyText}>
-              {copied ? "Copied!" : "Copy Code"}
-            </Text>
+            <View style={styles.copyContent}>
+              <Ionicons
+                name={copied ? "checkmark" : "copy-outline"}
+                size={16}
+                color={colors.primary}
+              />
+              <Text style={styles.copyText}>
+                {copied ? "Copied!" : "Copy Code"}
+              </Text>
+            </View>
           </TouchableOpacity>
 
           <View style={styles.divider} />
@@ -80,7 +88,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: spacing.lg,
   },
-  icon: { color: colors.primary, fontSize: 28, fontWeight: "900" },
   title: { textAlign: "center", marginBottom: spacing.sm },
   subtitle: { textAlign: "center", marginBottom: spacing.xl },
   receiptBox: {
@@ -130,5 +137,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     lineHeight: 18,
+  },
+  copyContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
 });

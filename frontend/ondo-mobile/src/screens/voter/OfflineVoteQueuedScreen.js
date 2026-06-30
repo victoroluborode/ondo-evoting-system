@@ -5,6 +5,7 @@ import { useContext } from "react";
 import CustomButton from "../../components/CustomButton";
 import { AuthContext } from "../../context/AuthContext";
 import { colors, spacing, typography, radius } from "../../theme";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function OfflineVoteQueuedScreen({ route }) {
   const insets = useSafeAreaInsets();
@@ -17,7 +18,11 @@ export default function OfflineVoteQueuedScreen({ route }) {
         style={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
       >
         <View style={styles.iconCircle}>
-          <Text style={styles.icon}>↻</Text>
+          <Ionicons
+            name="cloud-upload-outline"
+            size={32}
+            color={colors.warning}
+          />
         </View>
         <Text style={[typography.h1, styles.title]}>
           Vote Saved on This Device

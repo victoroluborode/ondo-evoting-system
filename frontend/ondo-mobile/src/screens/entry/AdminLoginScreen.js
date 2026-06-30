@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../../context/AuthContext";
@@ -74,6 +75,21 @@ export default function AdminLoginScreen() {
         >
           {!otpStep ? (
             <>
+              <View style={styles.brandBlock}>
+                <View style={styles.coatMark}>
+                  <Image
+                    source={require("../../assets/nigeria-coat-of-arms.png")}
+                    style={styles.coatOfArms}
+                    resizeMode="contain"
+                  />
+                </View>
+
+                <Text style={styles.brandName}>ONDO e-VOTE</Text>
+                <Text style={styles.brandTagline}>
+                  Federal Republic of Nigeria
+                </Text>
+              </View>
+
               <View style={styles.headerRow}>
                 <Text style={typography.label}>Admin Portal</Text>
                 <View style={[styles.chip, styles.chipDark]}>
@@ -229,7 +245,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingTop: spacing.l,
+    paddingTop: spacing.lg,
     width: "100%",
   },
   otpIconCircle: {
@@ -246,4 +262,40 @@ const styles = StyleSheet.create({
   otpIcon: { fontSize: 30, color: colors.primary },
   otpTitle: { textAlign: "center", marginBottom: spacing.xs },
   otpSubtitle: { textAlign: "center", marginBottom: spacing.lg, maxWidth: 280 },
+  brandBlock: {
+    alignItems: "center",
+    marginBottom: spacing.xl,
+    marginTop: spacing.md,
+  },
+
+  coatMark: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+
+  coatOfArms: {
+    width: 58,
+    height: 58,
+  },
+
+  brandName: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.text,
+    letterSpacing: 2,
+  },
+
+  brandTagline: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
 });

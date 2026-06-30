@@ -1,6 +1,7 @@
-import React, { useState, useContext } from "react";
+import React, { useContext } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import CustomButton from "../../components/CustomButton";
 import NetworkErrorState from "../../components/NetworkErrorState";
 import { useNetworkRequest } from "../../hooks/useNetworkRequest";
@@ -33,13 +34,10 @@ export default function VoteReviewScreen({ navigation, route }) {
       return;
     }
 
-    // Only fall back to offline queuing if this genuinely was a connectivity failure —
-    // a real rejection (already voted, invalid candidate, etc.) should surface normally.
     if (result.errorType === "network") {
       const offlinePkg = await getOfflinePackage();
 
       if (!offlinePkg) {
-        // No cached package available — nothing we can do locally.
         return;
       }
 
@@ -72,7 +70,15 @@ export default function VoteReviewScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
-          <Text style={typography.label}>Final Review</Text>
+          <View style={styles.headerLabelRow}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={16}
+              color={colors.textMuted}
+            />
+            <Text style={typography.label}>Final Review</Text>
+          </View>
+
           <View style={styles.chip}>
             <Text style={styles.chipText}>Voter</Text>
           </View>
@@ -81,24 +87,48 @@ export default function VoteReviewScreen({ navigation, route }) {
         <Text style={[typography.h1, styles.title]}>Confirm Your Vote</Text>
 
         <View style={styles.warningBox}>
-          <Text style={styles.warningTitle}>Immutable Action</Text>
-          <Text style={styles.warningText}>
-            Once submitted, your vote cannot be changed or withdrawn. Review
-            carefully before proceeding.
-          </Text>
+          <Ionicons
+            name="warning-outline"
+            size={22}
+            color={colors.warning}
+            style={styles.warningIcon}
+          />
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.warningTitle}>Immutable Action</Text>
+            <Text style={styles.warningText}>
+              Once submitted, your vote cannot be changed or withdrawn. Review
+              carefully before proceeding.
+            </Text>
+          </View>
         </View>
 
         {error && (
           <View style={styles.errorBanner}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={18}
+              color={colors.error}
+            />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
         <Text style={styles.sectionLabel}>Your Selected Candidate</Text>
+
         <View style={styles.selectionCard}>
+          <View style={styles.selectionIconCircle}>
+            <Ionicons
+              name="person-circle-outline"
+              size={34}
+              color={colors.primary}
+            />
+          </View>
+
           <Text style={styles.candidateName}>
             {candidate?.name || "No candidate selected"}
           </Text>
+
           <Text style={styles.candidateParty}>
             {candidate?.party || "—"}{" "}
             {constituencyName ? `· ${constituencyName}` : ""}
@@ -112,6 +142,7 @@ export default function VoteReviewScreen({ navigation, route }) {
             onPress={confirmVote}
             disabled={loading}
           />
+
           <CustomButton
             title="Start Selection Again"
             variant="outline"
@@ -127,13 +158,25 @@ export default function VoteReviewScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing.xs,
   },
+
+  headerLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
   chip: {
     backgroundColor: colors.primaryDim,
     borderWidth: 1,
@@ -142,6 +185,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
   },
+
   chipText: {
     fontSize: 11,
     fontWeight: "800",
@@ -149,8 +193,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
-  title: { marginBottom: spacing.lg },
+
+  title: {
+    marginBottom: spacing.lg,
+  },
+
   warningBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
     backgroundColor: "#FFF8E7",
     borderWidth: 1,
     borderColor: "#F0DDA0",
@@ -158,6 +209,11 @@ const styles = StyleSheet.create({
     padding: spacing.base,
     marginBottom: spacing.md,
   },
+
+  warningIcon: {
+    marginTop: 1,
+  },
+
   warningTitle: {
     fontSize: 11,
     fontWeight: "900",
@@ -166,8 +222,17 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 4,
   },
-  warningText: { fontSize: 13, lineHeight: 20, color: "#7A5A10" },
+
+  warningText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#7A5A10",
+  },
+
   errorBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.xs,
     padding: spacing.base,
     borderRadius: radius.lg,
     backgroundColor: "#FDECEB",
@@ -175,12 +240,15 @@ const styles = StyleSheet.create({
     borderColor: "#E8C0BC",
     marginBottom: spacing.md,
   },
+
   errorText: {
+    flex: 1,
     fontSize: 13,
     fontWeight: "600",
     color: colors.error,
     lineHeight: 19,
   },
+
   sectionLabel: {
     fontSize: 11,
     fontWeight: "900",
@@ -189,6 +257,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: spacing.sm,
   },
+
   selectionCard: {
     backgroundColor: colors.primaryDim,
     padding: spacing.lg,
@@ -198,17 +267,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: spacing.lg,
   },
+
+  selectionIconCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+
   candidateName: {
     fontSize: 22,
     fontWeight: "900",
     color: colors.text,
     textAlign: "center",
   },
+
   candidateParty: {
     fontSize: 14,
     fontWeight: "700",
     color: colors.primary,
     marginTop: 6,
+    textAlign: "center",
   },
-  actionGroup: { marginBottom: spacing.md },
+
+  actionGroup: {
+    marginBottom: spacing.md,
+  },
 });

@@ -7,6 +7,7 @@ import OfflineBanner from '../components/OfflineBanner';
 import { colors } from '../theme';
 import VoterStack from './VoterStack';
 import AdminStack from './AdminStack';
+import SplashScreen from '../screens/entry/SplashScreen';
 import VoterLoginScreen from '../screens/entry/VoterLoginScreen';
 import VoterRegisterScreen from '../screens/entry/VoterRegisterScreen';
 import AdminLoginScreen from '../screens/entry/AdminLoginScreen';
@@ -43,6 +44,11 @@ export default function AppNavigator() {
         <RootStack.Navigator screenOptions={headerOptions}>
           {userRole === null && (
             <>
+              <RootStack.Screen
+                name="Splash"
+                component={SplashScreen}
+                options={{ headerShown: false }}
+              />
               <RootStack.Screen
                 name="VoterLogin"
                 component={VoterLoginScreen}
