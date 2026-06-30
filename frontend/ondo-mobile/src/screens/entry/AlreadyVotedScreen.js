@@ -1,12 +1,24 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { CommonActions } from '@react-navigation/native';
+// AlreadyVotedScreen.js — accept and display a receipt code when available
+import React, { useContext, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Clipboard from "expo-clipboard";
 import CustomButton from "../../components/CustomButton";
 import { colors, spacing, typography, radius } from "../../theme";
+import { AuthContext } from "../../context/AuthContext";
 
-export default function AlreadyVotedScreen({ navigation }) {
+export default function AlreadyVotedScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
+  const { receiptCode, fromSync } = route.params || {};
+  const [copied, setCopied] = useState(false);
+  const { logout } = useContext(AuthContext);
+
+  const handleCopy = async () => {
+    if (!receiptCode) return;
+    await Clipboard.setStringAsync(receiptCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <View style={styles.container}>
@@ -18,17 +30,38 @@ export default function AlreadyVotedScreen({ navigation }) {
         </View>
         <Text style={[typography.h1, styles.title]}>You've Already Voted</Text>
         <Text style={[typography.subtitle, styles.subtitle]}>
-          Our records show you've already cast your vote in this election. Each
-          voter may only vote once.
+          {fromSync
+            ? "Your vote was saved while you were offline and has since been recorded successfully. Here's your receipt."
+            : "Our records show you've already cast your vote in this election. Each voter may only vote once."}
         </Text>
+
+        {receiptCode && (
+          <View style={styles.receiptBox}>
+            <Text style={styles.receiptLabel}>Receipt Code</Text>
+            <Text style={styles.receiptHash} selectable>
+              {receiptCode}
+            </Text>
+            <TouchableOpacity
+              onPress={handleCopy}
+              style={styles.copyRow}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.copyText}>
+                {copied ? "Copied!" : "Copy Code"}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <Text style={styles.receiptNote}>
+              This code confirms that a ballot was submitted. It does not reveal
+              who you voted for. You can verify it any time from the sign-in
+              screen.
+            </Text>
+          </View>
+        )}
+
         <CustomButton
           title="Back to Sign In"
-                  onPress={() => navigation.dispatch(
-                      CommonActions.reset({
-                        index: 0,
-                        routes: [{name: "VoterLogin"}],
-                      })
-                  )}
+          onPress={() => navigation.navigate("VoterLogin")}
         />
       </View>
     </View>
@@ -56,5 +89,54 @@ const styles = StyleSheet.create({
   },
   icon: { fontSize: 28, color: colors.primary, fontWeight: "900" },
   title: { textAlign: "center", marginBottom: spacing.sm },
-  subtitle: { textAlign: "center", marginBottom: spacing.xl },
+  subtitle: { textAlign: "center", marginBottom: spacing.lg },
+  receiptBox: {
+    width: "100%",
+    backgroundColor: colors.surface,
+    borderStyle: "dashed",
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  receiptLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: colors.textMuted,
+    textAlign: "center",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  receiptHash: {
+    fontSize: 13,
+    fontFamily: "monospace",
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+    marginVertical: spacing.md,
+    letterSpacing: 0.3,
+  },
+  copyRow: {
+    alignSelf: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    backgroundColor: colors.primaryDim,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    marginBottom: spacing.sm,
+  },
+  copyText: { fontSize: 12, fontWeight: "800", color: colors.primary },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  receiptNote: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: "center",
+    lineHeight: 18,
+  },
 });

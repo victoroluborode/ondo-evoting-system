@@ -9,7 +9,7 @@ import CustomButton from "../../components/CustomButton";
 
 export default function VoterDetailScreen({ route }) {
   const insets = useSafeAreaInsets();
-  const { voter } = route.params;
+  const [voter, setVoter] = useState(route.params.voter); // ← local, mutable copy
   const { getConstituencyName, getLgaName } = useConstituencyLookup();
   const { userData } = useContext(AuthContext);
   const [reinstating, setReinstating] = useState(false);
@@ -30,10 +30,7 @@ export default function VoterDetailScreen({ route }) {
                 headers: { Authorization: `Bearer ${userData.token}` },
                 body: JSON.stringify({ constituencyId: voter.constituencyId }),
               });
-              Alert.alert(
-                "Reinstated",
-                `${voter.fullName} can now sign in again.`,
-              );
+              setVoter((prev) => ({ ...prev, status: "registered" })); // ← update local state immediately
             } catch (err) {
               Alert.alert("Could Not Reinstate", err.message);
             } finally {

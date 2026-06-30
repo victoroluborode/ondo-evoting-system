@@ -30,43 +30,45 @@ async function listConstituencies(req, res) {
   }
 }
 
-/**
- * Returns only the authenticated voter's constituency ballot.
- */
+// ballotService.js — getBallot, add a vote-status check before returning candidates
 async function getBallot(req, res) {
   try {
     const { constituencyId } = req.params;
     const election = await getOpenElection();
 
     if (!election) {
-      return res.status(403).json({
-        error: "No election is currently open for voting",
-      });
+      return res.status(403).json({ error: "No election is currently open for voting" });
     }
 
-    // Prevents a voter from manually requesting another constituency's ballot.
     if (parseInt(constituencyId, 10) !== req.user.constituencyId) {
       return res.status(403).json({
         error: "Access denied: You can only view your own constituency ballot",
       });
     }
 
-    // Fetches only the candidate list for the approved constituency.
+    // Re-check vote status fresh, here — not just at login — since an offline
+    // sync may have recorded this voter's vote at any point after they logged in.
+    const existingVote = await pool.query(
+      `SELECT receipt_code FROM votes WHERE voter_id = $1 AND constituency_id = $2 AND election_id = $3 LIMIT 1`,
+      [req.user.voterId, constituencyId, election.id],
+    );
+
+    if (existingVote.rows.length > 0) {
+      return res.status(403).json({
+        error: "You have already voted in this election",
+        alreadyVoted: true,
+        receiptCode: existingVote.rows[0].receipt_code,
+      });
+    }
+
     const result = await pool.query(
-      `SELECT id, name, party, photo_url
-       FROM candidates
-       WHERE constituency_id = $1
-       ORDER BY party, name`,
+      `SELECT id, name, party, photo_url FROM candidates WHERE constituency_id = $1 ORDER BY party, name`,
       [constituencyId],
     );
 
     res.json({
       success: true,
-      election: {
-        id: election.id,
-        name: election.name,
-        status: election.status,
-      },
+      election: { id: election.id, name: election.name, status: election.status },
       constituencyId: parseInt(constituencyId, 10),
       candidates: result.rows,
     });
@@ -75,7 +77,6 @@ async function getBallot(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
-
 /**
  * Returns whether a House of Representatives election is currently open for voting.
  * Used by voter-facing screens to avoid sending someone through accreditation

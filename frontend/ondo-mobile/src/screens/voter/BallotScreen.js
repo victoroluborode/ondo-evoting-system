@@ -50,6 +50,7 @@ export default function BallotScreen({ navigation }) {
     }, []),
   );
 
+  // BallotScreen.js — update loadBallot's error handling
   const loadBallot = async () => {
     const result = await execute(async () => {
       const [ballotRes, constituenciesRes] = await Promise.all([
@@ -61,15 +62,25 @@ export default function BallotScreen({ navigation }) {
       return { ballotRes, constituenciesRes };
     });
 
-    if (result.success) {
-      setCandidates(result.data.ballotRes.candidates);
-      const match = result.data.constituenciesRes.constituencies.find(
-        (c) => c.id === userData.constituencyId,
-      );
-      setConstituencyName(
-        match?.name || `Constituency ${userData.constituencyId}`,
-      );
+    if (!result.success) {
+      const data = result.error?.data;
+      if (data?.alreadyVoted) {
+        navigation.replace("AlreadyVoted", {
+          receiptCode: data.receiptCode,
+          fromSync: true,
+        });
+        return;
+      }
+      return; // other errors fall through to existing error handling
     }
+
+    setCandidates(result.data.ballotRes.candidates);
+    const match = result.data.constituenciesRes.constituencies.find(
+      (c) => c.id === userData.constituencyId,
+    );
+    setConstituencyName(
+      match?.name || `Constituency ${userData.constituencyId}`,
+    );
   };
 
   const handleSelection = () => {

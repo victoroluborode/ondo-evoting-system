@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { AuthContext } from "../../context/AuthContext";
 import CustomButton from "../../components/CustomButton";
+import CustomInput from "../../components/CustomInput";
 import NetworkErrorState from "../../components/NetworkErrorState";
 import { useNetworkRequest } from "../../hooks/useNetworkRequest";
 import { adminRequest } from "../../services/adminApi";
@@ -54,9 +55,12 @@ const NEXT_TRANSITION = {
 export default function ElectionManagementScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { userData } = useContext(AuthContext);
+
   const [election, setElection] = useState(null);
+  const [endsAtInput, setEndsAtInput] = useState("");
   const [transitionError, setTransitionError] = useState(null);
   const [transitioning, setTransitioning] = useState(false);
+
   const { execute, errorType } = useNetworkRequest();
 
   const loadElection = useCallback(async () => {
@@ -67,13 +71,28 @@ export default function ElectionManagementScreen({ navigation }) {
     if (result.success) {
       setElection(result.data.election);
     }
-  }, [userData.token]);
+  }, [execute, userData.token]);
 
   useFocusEffect(
     useCallback(() => {
       loadElection();
     }, [loadElection]),
   );
+
+  const handleSetEndTime = async () => {
+    try {
+      await adminRequest(`/admin/elections/${election.id}`, userData.token, {
+        method: "PATCH",
+        body: JSON.stringify({
+          endsAt: new Date(endsAtInput).toISOString(),
+        }),
+      });
+
+      loadElection();
+    } catch (err) {
+      Alert.alert("Could Not Set End Time", err.message);
+    }
+  };
 
   const handleTransition = async () => {
     const transition = NEXT_TRANSITION[election.status];
@@ -167,6 +186,7 @@ export default function ElectionManagementScreen({ navigation }) {
                 : "Not set"}
             </Text>
           </View>
+
           <View style={[styles.detailRow, styles.detailRowLast]}>
             <Text style={styles.detailLabel}>Ends</Text>
             <Text style={styles.detailValue}>
@@ -177,12 +197,30 @@ export default function ElectionManagementScreen({ navigation }) {
           </View>
         </View>
 
+        {(election.status === "draft" || election.status === "open") && (
+          <View style={styles.formCard}>
+            <CustomInput
+              label="Set End Time"
+              placeholder="YYYY-MM-DD HH:MM"
+              value={endsAtInput}
+              onChangeText={setEndsAtInput}
+            />
+
+            <CustomButton
+              title="Save End Time"
+              variant="outline"
+              onPress={handleSetEndTime}
+            />
+          </View>
+        )}
+
         <CustomButton
           title="Manage Candidates"
           variant="outline"
           onPress={() => navigation.navigate("CandidateManagement")}
           style={{ marginBottom: spacing.sm }}
         />
+
         <CustomButton
           title="Manage Parties"
           variant="outline"
@@ -211,6 +249,7 @@ export default function ElectionManagementScreen({ navigation }) {
               This election has been archived. Reload this screen to begin a new
               election cycle.
             </Text>
+
             <CustomButton
               title="Start New Election"
               onPress={loadElection}
@@ -261,6 +300,14 @@ const styles = StyleSheet.create({
   detailRowLast: { borderBottomWidth: 0 },
   detailLabel: { fontSize: 13, color: colors.textMuted },
   detailValue: { fontSize: 13, fontWeight: "700", color: colors.text },
+  formCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    padding: spacing.base,
+    marginBottom: spacing.lg,
+  },
   errorBanner: {
     padding: spacing.base,
     borderRadius: radius.lg,

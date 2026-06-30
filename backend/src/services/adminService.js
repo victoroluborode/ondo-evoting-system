@@ -899,11 +899,12 @@ async function updateElection(req, res) {
 
   try {
     const { name, electionType, status, startsAt, endsAt } = req.body;
+
     const hasMetadataUpdate =
       name !== undefined ||
       electionType !== undefined ||
-      startsAt !== undefined ||
-      endsAt !== undefined;
+      startsAt !== undefined;
+    // endsAt is intentionally excluded because open elections can still update it
 
     if (status && !ELECTION_STATUSES.has(status)) {
       return res.status(400).json({ error: "Invalid election status" });
@@ -931,6 +932,16 @@ async function updateElection(req, res) {
       });
     }
 
+    if (endsAt !== undefined && current.status !== "draft") {
+      if (current.status !== "open") {
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          error:
+            "End time can only be changed while the election is in draft or open",
+        });
+      }
+    }
+
     validateElectionDateRange(
       startsAt === undefined ? current.starts_at : startsAt,
       endsAt === undefined ? current.ends_at : endsAt,
@@ -947,9 +958,9 @@ async function updateElection(req, res) {
        RETURNING *`,
       [
         name || null,
-        electionType || null,
-        startsAt || null,
-        endsAt || null,
+        electionType ?? null,
+        startsAt ?? null,
+        endsAt ?? null,
         req.params.id,
       ],
     );
@@ -979,6 +990,7 @@ async function updateElection(req, res) {
          RETURNING *`,
         [status, req.params.id],
       );
+
       election = statusResult.rows[0];
     }
 

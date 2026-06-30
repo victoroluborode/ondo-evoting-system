@@ -31,7 +31,10 @@ export default function OfflineVoteQueuedScreen({ route }) {
         <View style={styles.noticeBox}>
           <Text style={styles.noticeText}>
             Keep this app installed and open it again once you're back online to
-            finish submitting your vote.
+            finish submitting your vote. Once submitted, you can confirm your
+            vote was recorded at any time using the "Verify a Vote Receipt"
+            option on the sign-in screen — your vote's receipt code will also
+            appear automatically if you sign back into this account.
           </Text>
         </View>
 
