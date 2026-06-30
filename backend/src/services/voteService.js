@@ -433,6 +433,7 @@ async function syncOfflineVotes(req, res) {
           tokenId: offlineSession.tokenId,
           candidateId: queuedVote.candidateId,
           deviceId: queuedVote.deviceId || offlineSession.deviceId || null,
+          electionId: offlineSession.electionId,
           offlineVoteId,
           clientCastAt: queuedVote.clientCastAt || null,
           syncSource: "offline_sync",
