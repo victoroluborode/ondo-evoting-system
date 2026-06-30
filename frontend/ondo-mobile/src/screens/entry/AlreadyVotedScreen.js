@@ -1,6 +1,7 @@
 // AlreadyVotedScreen.js — accept and display a receipt code when available
-import React, { useContext, useState } from "react";
+import React, { useState, useContext } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { CommonActions } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import CustomButton from "../../components/CustomButton";
@@ -61,7 +62,18 @@ export default function AlreadyVotedScreen({ route, navigation }) {
 
         <CustomButton
           title="Back to Sign In"
-          onPress={() => navigation.navigate("VoterLogin")}
+          onPress={() => {
+            logout();
+
+            setTimeout(() => {
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: "VoterLogin" }],
+                }),
+              );
+            }, 0);
+          }}
         />
       </View>
     </View>

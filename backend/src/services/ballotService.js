@@ -85,10 +85,14 @@ async function getBallot(req, res) {
 async function getElectionStatus(req, res) {
   try {
     const election = await getOpenElection();
+    // ballotService.js — getElectionStatus, expand the election object in the response
     res.json({
       success: true,
       isOpen: Boolean(election),
-      election: election ? { id: election.id, name: election.name } : null,
+      election: election
+        ? { id: election.id, name: election.name, endsAt: election.ends_at }
+        : null,
+      endsAt: election.ends_at,
     });
   } catch (error) {
     console.error("Election status fetch error:", error);
